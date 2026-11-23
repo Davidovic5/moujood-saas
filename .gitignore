@@ -19,3 +19,5 @@ dist-ssr/
 # Native builds / Keystores
 android-native/
 *.keystore
+.vercel
+.env*

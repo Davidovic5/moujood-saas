@@ -1743,12 +1743,12 @@ export default function App() {
                   <span>🍎 ملف بروفايل الآيفون (iOS MobileConfig):</span>
                 </div>
                 <a
-                  href="/download/OfficeAttendance.mobileconfig"
+                  href="/download/Moujood.mobileconfig?v=5.0"
                   download
                   className="inline-flex items-center justify-center gap-2 w-full py-2 px-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-bold rounded-xl transition-colors text-xs"
                 >
                   <Download className="w-3.5 h-3.5 text-amber-400" />
-                  <span>تنزيل ملف الآيفون (OfficeAttendance.mobileconfig)</span>
+                  <span>تنزيل ملف الآيفون (Moujood.mobileconfig)</span>
                 </a>
               </div>
             </div>

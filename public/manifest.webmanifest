@@ -2,43 +2,37 @@
   "name": "موجود - Moujood",
   "short_name": "موجود",
   "description": "منظومة موجود الذكية - موچود.. موظفك في مكانه بالـ GPS وبدون أجهزة بصمة",
-  "start_url": "/",
+  "start_url": "/?installed=1",
   "scope": "/",
-  "id": "/",
+  "id": "/moujood",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#09090b",
   "theme_color": "#09090b",
   "icons": [
     {
-      "src": "/brand/logo.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "/apple-touch-icon.png?v=5.0",
+      "sizes": "180x180",
+      "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/icon-192.png?v=4.0",
+      "src": "/icon-192.png?v=5.0",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icon-512.png?v=4.0",
+      "src": "/icon-512.png?v=5.0",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icon-maskable-512.png?v=4.0",
+      "src": "/icon-maskable-512.png?v=5.0",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
-    },
-    {
-      "src": "/apple-touch-icon.png?v=4.0",
-      "sizes": "180x180",
-      "type": "image/png",
-      "purpose": "any"
     }
   ]
 }

@@ -397,12 +397,12 @@ export function AuthScreen({ titles, branches, officeSettings, onAuthSuccess }) 
               </div>
 
               <a
-                href="/download/OfficeAttendance.mobileconfig?v=4.0"
+                href="/download/Moujood.mobileconfig?v=5.0"
                 download
                 className="w-full py-2.5 px-3 bg-zinc-900 hover:bg-zinc-850 text-zinc-300 hover:text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 border border-zinc-700/80 transition-colors"
               >
                 <Download className="w-3.5 h-3.5 text-amber-400" />
-                <span>أو تنزيل بروفايل الآيفون المباشر (MobileConfig)</span>
+                <span>تثبيت تطبيق موجود المباشر للآيفون (Moujood.mobileconfig)</span>
               </a>
 
               <p className="text-[10px] text-zinc-400 leading-normal bg-zinc-900/50 p-2 rounded-lg border border-zinc-800/60">
@@ -995,12 +995,12 @@ export function AuthScreen({ titles, branches, officeSettings, onAuthSuccess }) 
                   <span>🍎 ملف بروفايل الآيفون (iOS MobileConfig):</span>
                 </div>
                 <a
-                  href="/download/OfficeAttendance.mobileconfig?v=4.0"
+                  href="/download/Moujood.mobileconfig?v=5.0"
                   download
                   className="inline-flex items-center justify-center gap-2 w-full py-2 px-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-bold rounded-xl transition-colors text-xs"
                 >
                   <Download className="w-3.5 h-3.5 text-amber-400" />
-                  <span>تنزيل ملف (OfficeAttendance.mobileconfig)</span>
+                  <span>تنزيل ملف (Moujood.mobileconfig)</span>
                 </a>
               </div>
             </div>

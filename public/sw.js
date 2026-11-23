@@ -1,7 +1,7 @@
-// Service Worker for Office Attendance PWA
+// Service Worker for Moujood SaaS PWA
 // Provides instant app installation, seamless background updates, and Push Notifications
 
-const CACHE_NAME = 'office-attendance-cache-v1';
+const CACHE_NAME = 'moujood-saas-cache-v1';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
