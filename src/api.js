@@ -13,8 +13,19 @@ export function getResolvedSubdomain() {
   if (savedSlug) return savedSlug;
 
   const host = window.location.hostname;
+  
+  // For Vercel deployments (e.g. moujood-saas.vercel.app or moujood-saas-*.vercel.app)
+  // The root project has 3 parts: [project].vercel.app. Only 4+ parts is a tenant subdomain.
+  if (host.endsWith('.vercel.app')) {
+    const parts = host.split('.');
+    if (parts.length > 3 && parts[0] !== 'www' && parts[0] !== 'api') {
+      return parts[0].toLowerCase();
+    }
+    return '';
+  }
+
   const parts = host.split('.');
-  // e.g. acme.attendance.com -> acme (ignore localhost, www, api)
+  // e.g. acme.moujood.com -> acme (ignore localhost, www, api)
   if (parts.length > 2 && parts[0] !== 'www' && parts[0] !== 'api') {
     return parts[0].toLowerCase();
   }

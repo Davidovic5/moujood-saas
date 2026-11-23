@@ -40,10 +40,17 @@ async function resolveTenant(req, res, next) {
     // C. Check Host header (e.g. acme.attendance.com -> acme)
     if (!slug) {
       const host = req.get('host') || '';
-      const hostParts = host.split(':')[0].split('.');
-      // If subdomain exists and isn't www or localhost or ip
-      if (hostParts.length > 2 && hostParts[0] !== 'www' && hostParts[0] !== 'api') {
-        slug = hostParts[0].toLowerCase();
+      const cleanHost = host.split(':')[0].toLowerCase();
+      if (cleanHost.endsWith('.vercel.app')) {
+        const hostParts = cleanHost.split('.');
+        if (hostParts.length > 3 && hostParts[0] !== 'www' && hostParts[0] !== 'api') {
+          slug = hostParts[0].toLowerCase();
+        }
+      } else {
+        const hostParts = cleanHost.split('.');
+        if (hostParts.length > 2 && hostParts[0] !== 'www' && hostParts[0] !== 'api') {
+          slug = hostParts[0].toLowerCase();
+        }
       }
     }
 

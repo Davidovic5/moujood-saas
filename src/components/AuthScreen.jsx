@@ -50,7 +50,7 @@ const DEFAULT_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/20
 
 export function AuthScreen({ titles, branches, officeSettings, onAuthSuccess }) {
   const [isInstalledApp, setIsInstalledApp] = useState(() => checkIsInstalledApp());
-  const [webBypass, setWebBypass] = useState(false);
+  const [webBypass, setWebBypass] = useState(true);
   const [authMode, setAuthMode] = useState('login'); // 'login' | 'register'
   const [loading, setLoading] = useState(false);
   const [showInstallModal, setShowInstallModal] = useState(false);
@@ -424,16 +424,16 @@ export function AuthScreen({ titles, branches, officeSettings, onAuthSuccess }) 
         </div>
       ) : (
         /* ================= VIEW B: PURE LOGIN / REGISTER (Inside Installed App or Web Bypass) ================= */
-        <div className="w-full max-w-md bg-zinc-900 border border-amber-500/30 rounded-3xl p-5 sm:p-7 shadow-2xl relative z-10 text-zinc-100 animate-fade-in">
+        <div className="w-full max-w-md bg-[#0E1118] border border-white/[0.08] rounded-3xl p-5 sm:p-7 shadow-2xl relative z-10 text-zinc-100 animate-fade-in">
           {/* Theme Toggle Button */}
           <button
             type="button"
             onClick={toggleTheme}
-            className="absolute top-4 left-4 p-2 rounded-xl bg-zinc-800/80 hover:bg-zinc-700 text-amber-400 border border-zinc-700/60 transition-all flex items-center justify-center cursor-pointer shadow-xs active:scale-95"
+            className="absolute top-4 left-4 p-2 rounded-xl bg-[#08090C] hover:bg-zinc-800 text-emerald-400 border border-white/[0.08] transition-all flex items-center justify-center cursor-pointer shadow-xs active:scale-95"
             title={theme === 'dark' ? 'التحويل إلى الوضع الفاتح (Light Mode)' : 'التحويل إلى الوضع الداكن (Dark Mode)'}
             aria-label="تبديل الوضع"
           >
-            {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-amber-500" />}
+            {theme === 'dark' ? <Sun className="w-4 h-4 text-emerald-400" /> : <Moon className="w-4 h-4 text-emerald-500" />}
           </button>
 
           {/* Brand Header */}
@@ -442,12 +442,12 @@ export function AuthScreen({ titles, branches, officeSettings, onAuthSuccess }) 
               <img 
                 src={companyConfig.logoPath} 
                 alt={companyConfig.companyName} 
-                className="w-full h-full object-contain filter drop-shadow-[0_4px_14px_rgba(245,184,0,0.3)]" 
+                className="w-full h-full object-contain filter drop-shadow-[0_4px_14px_rgba(16,185,129,0.3)]" 
               />
             </div>
-            <h1 className="text-lg font-black text-amber-400 tracking-wide">{companyConfig.companyName}</h1>
+            <h1 className="text-lg font-black text-white tracking-wide">{companyConfig.companyName}</h1>
             <p className="text-[11px] text-zinc-400 font-bold tracking-wider uppercase mt-0.5">
-              {companyConfig.companyName} • نظام الحضور والغياب
+              {companyConfig.companyName} • نظام الحضور والغياب الذكي
             </p>
           </div>
 
@@ -456,15 +456,15 @@ export function AuthScreen({ titles, branches, officeSettings, onAuthSuccess }) 
             <button
               type="button"
               onClick={() => setShowInstallModal(true)}
-              className="w-full mb-4 py-2.5 px-3 bg-gradient-to-r from-amber-500/15 via-amber-500/25 to-amber-500/15 hover:from-amber-500/25 hover:to-amber-500/25 border border-amber-500/40 rounded-2xl text-amber-400 font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs active:scale-[0.98]"
+              className="w-full mb-4 py-2.5 px-3 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 rounded-2xl text-emerald-400 font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs active:scale-[0.98]"
             >
-              <Download className="w-4 h-4 text-amber-400 animate-bounce" />
+              <Download className="w-4 h-4 text-emerald-400 animate-bounce" />
               <span>📲 اضغط هنا لتثبيت التطبيق على شاشة الهاتف</span>
             </button>
           )}
 
           {/* Tab Switcher (Login vs Register) */}
-          <div className="flex bg-zinc-950 p-1.5 rounded-2xl mb-5 border border-zinc-800">
+          <div className="flex bg-[#08090C] p-1.5 rounded-2xl mb-5 border border-white/[0.06]">
             <button
               type="button"
               onClick={() => {
@@ -472,9 +472,9 @@ export function AuthScreen({ titles, branches, officeSettings, onAuthSuccess }) 
                 setErrorMsg('');
                 setSuccessMsg('');
               }}
-              className={`flex-1 py-2 text-xs font-black rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+              className={`flex-1 py-2 text-xs font-black rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                 authMode === 'login'
-                  ? 'bg-amber-500 text-black shadow-md shadow-amber-500/20'
+                  ? 'bg-emerald-500 text-[#052e16] shadow-md shadow-emerald-500/20'
                   : 'text-zinc-400 hover:text-white'
               }`}
             >
@@ -488,9 +488,9 @@ export function AuthScreen({ titles, branches, officeSettings, onAuthSuccess }) 
                 setErrorMsg('');
                 setSuccessMsg('');
               }}
-              className={`flex-1 py-2 text-xs font-black rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+              className={`flex-1 py-2 text-xs font-black rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                 authMode === 'register'
-                  ? 'bg-amber-500 text-black shadow-md shadow-amber-500/20'
+                  ? 'bg-emerald-500 text-[#052e16] shadow-md shadow-emerald-500/20'
                   : 'text-zinc-400 hover:text-white'
               }`}
             >
@@ -519,35 +519,35 @@ export function AuthScreen({ titles, branches, officeSettings, onAuthSuccess }) 
             <div>
               <label className="block text-xs font-bold text-zinc-300 mb-1.5 flex items-center justify-between">
                 <span className="flex items-center gap-1.5">
-                  <Phone className="w-3.5 h-3.5 text-amber-400" />
-                  <span>رقم الهاتف أو كود الـ SAP:</span>
+                  <Phone className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>رقم الهاتف أو الرقم الوظيفي:</span>
                 </span>
-                <span className="text-[10px] text-amber-400/90 font-mono font-bold bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20">
-                  Phone / SAP
+                <span className="text-[10px] text-emerald-400 font-mono font-bold bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
+                  Phone / ID
                 </span>
               </label>
               <input
                 type="text"
                 value={loginPhone}
                 onChange={e => setLoginPhone(e.target.value)}
-                placeholder="أدخل رقم الموبايل أو كود الـ SAP"
+                placeholder="أدخل رقم الموبايل أو كود الموظف"
                 autoComplete="username webauthn"
                 dir="ltr"
                 required
-                className="w-full p-3 text-xs font-bold text-left rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-amber-500 font-mono"
+                className="w-full p-3 text-xs font-bold text-left rounded-xl bg-[#08090C] border border-white/[0.08] text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-emerald-500 font-mono"
               />
             </div>
 
             <div>
               <label className="block text-xs font-bold text-zinc-300 mb-1.5 flex items-center justify-between">
                 <span className="flex items-center gap-1.5">
-                  <Lock className="w-3.5 h-3.5 text-amber-400" />
+                  <Lock className="w-3.5 h-3.5 text-emerald-400" />
                   <span>كلمة المرور:</span>
                 </span>
                 <button
                   type="button"
                   onClick={() => setShowLoginPassword(!showLoginPassword)}
-                  className="text-[11px] text-zinc-400 hover:text-amber-400 flex items-center gap-1"
+                  className="text-[11px] text-zinc-400 hover:text-emerald-400 flex items-center gap-1 cursor-pointer"
                 >
                   {showLoginPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                   <span>{showLoginPassword ? 'إخفاء' : 'إظهار'}</span>
@@ -560,16 +560,16 @@ export function AuthScreen({ titles, branches, officeSettings, onAuthSuccess }) 
                 placeholder="أدخل كلمة المرور الخاصة بك"
                 dir="ltr"
                 required
-                className="w-full p-3 text-xs font-bold text-left rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-amber-500 font-mono"
+                className="w-full p-3 text-xs font-bold text-left rounded-xl bg-[#08090C] border border-white/[0.08] text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-emerald-500 font-mono"
               />
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black font-black text-xs shadow-lg shadow-amber-500/25 active:scale-[0.98] transition-all flex items-center justify-center gap-2 mt-4"
+              className="w-full py-3.5 px-6 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-[#052e16] font-black text-xs shadow-lg shadow-emerald-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 mt-4 cursor-pointer"
             >
-              <LogIn className="w-4 h-4 text-black" />
+              <LogIn className="w-4 h-4 text-[#052e16]" />
               <span>{loading ? 'جاري التحقق...' : 'دخول إلى البرنامج'}</span>
             </button>
 
