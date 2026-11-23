@@ -113,16 +113,16 @@ export function CompanyRegistrationModal({ isOpen, onClose, onSuccess, initialPl
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 font-['Cairo',sans-serif]" dir="rtl">
-      <div className="bg-zinc-900 border border-emerald-500/30 rounded-3xl max-w-lg w-full shadow-2xl overflow-hidden relative text-right text-zinc-100 animate-fade-in">
+      <div className="bg-[#0E1118] border border-white/[0.08] rounded-3xl max-w-lg w-full shadow-2xl overflow-hidden relative text-right text-zinc-100 animate-fade-in">
         
         {/* Header */}
-        <div className="p-5 sm:p-6 border-b border-zinc-800 bg-gradient-to-b from-zinc-850 to-zinc-900 flex items-center justify-between">
+        <div className="p-5 sm:p-6 border-b border-white/[0.06] bg-[#0A0D14] flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-black flex items-center justify-center font-black shadow-md shadow-emerald-500/20">
-              <Sparkles className="w-5 h-5" />
+            <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center font-black shadow-md shadow-emerald-500/10">
+              <Building2 className="w-5 h-5 text-emerald-400" />
             </div>
             <div>
-              <h3 className="text-base font-black text-emerald-400 leading-tight">
+              <h3 className="text-base font-black text-white leading-tight">
                 ابدأ التجربة المجانية (14 يوماً مجاناً)
               </h3>
               <p className="text-[11px] text-zinc-400 mt-0.5">بدون بطاقة ائتمان • تفعيل فوري لمنظومة شركتك</p>
@@ -131,7 +131,7 @@ export function CompanyRegistrationModal({ isOpen, onClose, onSuccess, initialPl
 
           <button
             onClick={onClose}
-            className="p-1.5 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors"
+            className="p-1.5 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -219,7 +219,7 @@ export function CompanyRegistrationModal({ isOpen, onClose, onSuccess, initialPl
 
               <button
                 type="submit"
-                className="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-black font-black text-sm rounded-xl shadow-lg transition-all active:scale-[0.98] mt-2 flex items-center justify-center gap-2"
+                className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-400 text-[#052e16] font-black text-sm rounded-xl shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.98] mt-2 flex items-center justify-center gap-2 cursor-pointer"
               >
                 <span>المتابعة إلى بيانات الحساب</span>
                 <ChevronRight className="w-4 h-4 rotate-180" />
@@ -230,7 +230,7 @@ export function CompanyRegistrationModal({ isOpen, onClose, onSuccess, initialPl
           {/* STEP 2: ADMIN CREDENTIALS */}
           {step === 2 && (
             <form onSubmit={handleSubmit} className="space-y-4 text-xs">
-              <div className="bg-emerald-500/10 border border-emerald-500/20 p-3 rounded-2xl flex items-center justify-between">
+              <div className="bg-[#08090C] border border-white/[0.06] p-3 rounded-2xl flex items-center justify-between">
                 <div>
                   <div className="font-bold text-white text-xs">{companyName}</div>
                   <div className="text-[10px] text-emerald-400 font-mono" dir="ltr">{slug}.attendance.app</div>
@@ -238,7 +238,7 @@ export function CompanyRegistrationModal({ isOpen, onClose, onSuccess, initialPl
                 <button
                   type="button"
                   onClick={() => setStep(1)}
-                  className="text-[11px] text-zinc-400 hover:text-white underline"
+                  className="text-[11px] text-zinc-400 hover:text-white underline cursor-pointer"
                 >
                   تعديل
                 </button>
@@ -254,7 +254,7 @@ export function CompanyRegistrationModal({ isOpen, onClose, onSuccess, initialPl
                   placeholder="مثال: م. أحمد خليل"
                   value={adminName}
                   onChange={(e) => setAdminName(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-700 focus:border-emerald-500 text-sm text-white p-3 rounded-xl outline-none"
+                  className="w-full bg-[#08090C] border border-white/[0.08] focus:border-emerald-500 text-sm text-white p-3 rounded-xl outline-none"
                   autoFocus
                   required
                 />
@@ -270,7 +270,7 @@ export function CompanyRegistrationModal({ isOpen, onClose, onSuccess, initialPl
                   placeholder="مثال: 01012345678"
                   value={adminPhone}
                   onChange={(e) => setAdminPhone(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-700 focus:border-emerald-500 text-sm text-white font-mono p-3 rounded-xl outline-none"
+                  className="w-full bg-[#08090C] border border-white/[0.08] focus:border-emerald-500 text-sm text-white font-mono p-3 rounded-xl outline-none"
                   dir="ltr"
                   required
                 />
@@ -286,7 +286,7 @@ export function CompanyRegistrationModal({ isOpen, onClose, onSuccess, initialPl
                   placeholder="أدخل كلمة مرور قوية..."
                   value={adminPassword}
                   onChange={(e) => setAdminPassword(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-700 focus:border-emerald-500 text-sm text-white p-3 rounded-xl outline-none"
+                  className="w-full bg-[#08090C] border border-white/[0.08] focus:border-emerald-500 text-sm text-white p-3 rounded-xl outline-none"
                   required
                 />
               </div>
@@ -295,16 +295,16 @@ export function CompanyRegistrationModal({ isOpen, onClose, onSuccess, initialPl
                 <button
                   type="button"
                   onClick={() => setStep(1)}
-                  className="py-3 px-4 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold text-xs rounded-xl"
+                  className="py-3 px-4 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold text-xs rounded-xl cursor-pointer"
                 >
                   رجوع
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="flex-1 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-black font-black text-sm rounded-xl shadow-lg transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="flex-1 py-3.5 bg-emerald-500 hover:bg-emerald-400 text-[#052e16] font-black text-sm rounded-xl shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  {loading ? 'جاري تهيئة منظومتك...' : 'تفعيل الحساب والبدء فوراً 🚀'}
+                  {loading ? 'جاري تهيئة منظومتك...' : 'تفعيل الحساب والبدء فوراً'}
                 </button>
               </div>
             </form>
@@ -324,14 +324,14 @@ export function CompanyRegistrationModal({ isOpen, onClose, onSuccess, initialPl
                 </p>
               </div>
 
-              <div className="bg-zinc-950 border border-zinc-800 p-4 rounded-2xl text-xs space-y-2 text-right">
-                <div className="flex justify-between items-center border-b border-zinc-800 pb-2">
+              <div className="bg-[#08090C] border border-white/[0.06] p-4 rounded-2xl text-xs space-y-2 text-right">
+                <div className="flex justify-between items-center border-b border-white/[0.06] pb-2">
                   <span className="text-zinc-400">الرابط المخصص لشركتك:</span>
                   <span className="font-mono text-emerald-400 font-bold" dir="ltr">
                     {registrationResult.tenant.slug}.attendance.app
                   </span>
                 </div>
-                <div className="flex justify-between items-center border-b border-zinc-800 pb-2">
+                <div className="flex justify-between items-center border-b border-white/[0.06] pb-2">
                   <span className="text-zinc-400">رقم الدخول (اسم المستخدم):</span>
                   <span className="font-mono text-white font-bold" dir="ltr">{adminPhone}</span>
                 </div>
@@ -344,7 +344,7 @@ export function CompanyRegistrationModal({ isOpen, onClose, onSuccess, initialPl
               <button
                 type="button"
                 onClick={handleCompleteAndLaunch}
-                className="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-black font-black text-sm rounded-xl shadow-xl transition-all active:scale-[0.98]"
+                className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-400 text-[#052e16] font-black text-sm rounded-xl shadow-xl shadow-emerald-500/25 transition-all active:scale-[0.98] cursor-pointer"
               >
                 دخول لوحة التحكم والبدء في إضافة الموظفين والفروع 🚀
               </button>

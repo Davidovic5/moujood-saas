@@ -927,9 +927,9 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col font-['Cairo',sans-serif] selection:bg-amber-500 selection:text-black">
+    <div className="min-h-screen bg-[#08090C] text-zinc-100 flex flex-col font-['Cairo',sans-serif] selection:bg-emerald-500 selection:text-black">
       {/* Top Bar with Brand Logo */}
-      <header className="sticky top-0 z-40 bg-zinc-900/95 backdrop-blur-md border-b border-amber-500/20 px-3.5 py-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] shadow-md">
+      <header className="sticky top-0 z-40 bg-[#0E1118]/90 backdrop-blur-md border-b border-white/[0.08] px-3.5 py-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] shadow-md">
         <div className="max-w-lg mx-auto flex items-center justify-between gap-2">
           {/* Brand Logo & Branch Badge */}
           <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -937,13 +937,13 @@ export default function App() {
               <img 
                 src={companyConfig.logoPath} 
                 alt={companyConfig.companyName} 
-                className="w-full h-full object-contain filter drop-shadow-[0_2px_8px_rgba(245,184,0,0.3)]" 
+                className="w-full h-full object-contain filter drop-shadow-[0_2px_8px_rgba(16,185,129,0.3)]" 
               />
             </div>
             <div className="min-w-0">
-              <h1 className="text-xs font-black text-amber-400 leading-tight truncate">{companyConfig.companyName}</h1>
-              <span className="text-[10px] text-zinc-300 font-bold flex items-center gap-1 mt-0.5 truncate">
-                <MapPin className="w-2.5 h-2.5 text-amber-500 shrink-0" />
+              <h1 className="text-xs font-black text-white leading-tight truncate">{companyConfig.companyName}</h1>
+              <span className="text-[10px] text-zinc-400 font-bold flex items-center gap-1 mt-0.5 truncate">
+                <MapPin className="w-2.5 h-2.5 text-emerald-400 shrink-0" />
                 <span className="truncate">فرع {currentUser?.branchName || branches[0]?.name || companyConfig.entitySingular}</span>
               </span>
             </div>
@@ -954,14 +954,14 @@ export default function App() {
             {/* Dark / Light Mode Toggle Button */}
             <button
               onClick={toggleTheme}
-              className="p-2 sm:p-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-amber-400 border border-amber-500/30 transition-all flex items-center justify-center shadow-xs cursor-pointer active:scale-95"
+              className="p-2 sm:p-2.5 rounded-xl bg-[#08090C] hover:bg-zinc-800 text-emerald-400 border border-white/[0.08] transition-all flex items-center justify-center shadow-xs cursor-pointer active:scale-95"
               title={theme === 'dark' ? 'التحويل إلى الوضع الفاتح (Light Mode)' : 'التحويل إلى الوضع الداكن (Dark Mode)'}
               aria-label={theme === 'dark' ? 'التحويل إلى الوضع الفاتح' : 'التحويل إلى الوضع الداكن'}
             >
               {theme === 'dark' ? (
-                <Sun className="w-4 h-4 text-amber-400" />
+                <Sun className="w-4 h-4 text-emerald-400" />
               ) : (
-                <Moon className="w-4 h-4 text-amber-500" />
+                <Moon className="w-4 h-4 text-emerald-500" />
               )}
             </button>
 
@@ -970,16 +970,16 @@ export default function App() {
               <button
                 onClick={handleEnablePush}
                 disabled={pushEnabling}
-                className="relative p-2 sm:p-2.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 border border-amber-500/50 transition-all flex items-center justify-center shadow-xs cursor-pointer active:scale-95 animate-pulse"
+                className="relative p-2 sm:p-2.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/50 transition-all flex items-center justify-center shadow-xs cursor-pointer active:scale-95 animate-pulse"
                 title="اضغط هنا لتفعيل إشعارات الهاتف الفورية"
                 aria-label="تفعيل إشعارات الهاتف"
               >
                 {pushEnabling ? (
-                  <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
+                  <Loader2 className="w-4 h-4 animate-spin text-emerald-400" />
                 ) : (
                   <>
-                    <Bell className="w-4 h-4 text-amber-400" />
-                    <span className="absolute -top-1 -right-1 bg-amber-500 text-black text-[9px] font-black w-3.5 h-3.5 rounded-full flex items-center justify-center shadow-xs">
+                    <Bell className="w-4 h-4 text-emerald-400" />
+                    <span className="absolute -top-1 -right-1 bg-emerald-500 text-black text-[9px] font-black w-3.5 h-3.5 rounded-full flex items-center justify-center shadow-xs">
                       !
                     </span>
                   </>
@@ -990,7 +990,7 @@ export default function App() {
             {/* Profile Settings Button */}
             <button
               onClick={openProfileSettings}
-              className="p-2 sm:p-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-amber-400 border border-amber-500/30 transition-colors flex items-center justify-center shadow-xs"
+              className="p-2 sm:p-2.5 rounded-xl bg-[#08090C] hover:bg-zinc-800 text-emerald-400 border border-white/[0.08] transition-colors flex items-center justify-center shadow-xs cursor-pointer"
               title="إعدادات الحساب والصورة وكلمة المرور"
             >
               <User className="w-4 h-4" />
@@ -1000,10 +1000,10 @@ export default function App() {
             {!isAppInstalled && (
               <button
                 onClick={() => setShowInstallModal(true)}
-                className="p-2 sm:p-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white border border-zinc-700/80 transition-colors flex items-center justify-center shadow-xs"
+                className="p-2 sm:p-2.5 rounded-xl bg-[#08090C] hover:bg-zinc-800 text-zinc-300 hover:text-white border border-white/[0.08] transition-colors flex items-center justify-center shadow-xs cursor-pointer"
                 title="تنزيل التطبيق على الهاتف"
               >
-                <Download className="w-4 h-4 text-amber-400" />
+                <Download className="w-4 h-4 text-emerald-400" />
               </button>
             )}
 
@@ -1013,7 +1013,7 @@ export default function App() {
             {/* Logout */}
             <button
               onClick={handleLogout}
-              className="p-2 sm:p-2.5 rounded-xl bg-zinc-800/80 hover:bg-rose-950/80 text-zinc-400 hover:text-rose-300 transition-colors flex items-center justify-center border border-zinc-700/60 shadow-xs"
+              className="p-2 sm:p-2.5 rounded-xl bg-[#08090C] hover:bg-rose-950/80 text-zinc-400 hover:text-rose-300 transition-colors flex items-center justify-center border border-white/[0.08] shadow-xs cursor-pointer"
               title="تسجيل الخروج"
             >
               <LogOut className="w-4 h-4" />
@@ -1027,40 +1027,40 @@ export default function App() {
         {/* Profile & Context Card */}
         <div 
           onClick={openProfileSettings}
-          className="cursor-pointer group bg-gradient-to-r from-zinc-900 via-zinc-850 to-zinc-900 border border-amber-500/30 hover:border-amber-500/60 text-zinc-100 rounded-3xl p-3.5 sm:p-4 shadow-xl mb-4 flex items-center justify-between gap-2.5 relative overflow-hidden transition-all"
+          className="cursor-pointer group bg-[#0E1118] border border-white/[0.08] hover:border-emerald-500/40 text-zinc-100 rounded-3xl p-3.5 sm:p-4 shadow-xl mb-4 flex items-center justify-between gap-2.5 relative overflow-hidden transition-all"
         >
-          {/* Subtle gold accent glow */}
-          <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-2xl pointer-events-none"></div>
+          {/* Subtle emerald accent glow */}
+          <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none"></div>
 
           <div className="flex items-center gap-2.5 min-w-0 flex-1 relative z-10">
             <div className="relative shrink-0">
               <img 
                 src={currentUser?.avatar || DEFAULT_AVATAR} 
                 alt={currentUser?.name || 'صورة الموظف'} 
-                className="w-12 h-12 rounded-2xl object-cover border-2 border-amber-400 shadow-md shrink-0"
+                className="w-12 h-12 rounded-2xl object-cover border-2 border-emerald-500/40 shadow-md shrink-0 bg-zinc-950"
               />
-              <div className="absolute -bottom-1 -left-1 bg-amber-500 text-black p-0.5 rounded-md shadow-xs">
-                <Camera className="w-3 h-3" />
+              <div className="absolute -bottom-1 -left-1 bg-emerald-500 text-black p-0.5 rounded-md shadow-xs">
+                <Camera className="w-3 h-3 text-[#052e16]" />
               </div>
             </div>
             <div className="min-w-0 flex-1">
               <span className="text-[10px] text-zinc-400 font-bold block leading-tight">مرحباً بك،</span>
-              <h2 className="text-sm font-black text-amber-300 leading-tight group-hover:text-amber-400 transition-colors truncate">
+              <h2 className="text-sm font-black text-white leading-tight group-hover:text-emerald-400 transition-colors truncate">
                 {currentUser?.name || 'المستخدم'}
               </h2>
-              <div className="text-[11px] font-bold text-amber-400 truncate mt-0.5 leading-tight">
+              <div className="text-[11px] font-bold text-emerald-400 truncate mt-0.5 leading-tight">
                 {currentUser?.jobTitle || companyConfig.companyName}
               </div>
               <div className="text-[10px] text-zinc-400 flex items-center gap-1 mt-0.5 truncate">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0"></span>
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></span>
                 <span className="truncate">فرع {currentUser?.branchName || branches[0]?.name || companyConfig.entitySingular}</span>
               </div>
             </div>
           </div>
 
-          <div className="text-left bg-zinc-950/90 px-3 py-2 rounded-2xl border border-zinc-800 shrink-0 relative z-10 shadow-inner">
+          <div className="text-left bg-[#08090C] px-3 py-2 rounded-2xl border border-white/[0.06] shrink-0 relative z-10 shadow-inner">
             <span className="text-[10px] text-zinc-400 font-semibold block leading-tight">اليوم</span>
-            <span className="text-xs font-black text-amber-400 whitespace-nowrap">
+            <span className="text-xs font-black text-emerald-400 whitespace-nowrap">
               {formatArabicDateWithDay(new Date())}
             </span>
           </div>
@@ -1073,7 +1073,7 @@ export default function App() {
       </main>
 
       {/* Fixed Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-zinc-900/95 backdrop-blur-md border-t border-amber-500/20 px-1 py-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-2xl">
+      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-[#0E1118]/95 backdrop-blur-md border-t border-white/[0.08] px-1 py-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-2xl">
         <div className="max-w-lg mx-auto flex justify-around items-center gap-0.5">
           {tabs.map(tab => {
             const Icon = tab.icon;
@@ -1083,8 +1083,8 @@ export default function App() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex flex-col items-center py-1 px-1 rounded-xl transition-all relative flex-1 min-w-0 ${
-                  isActive ? 'text-amber-400' : 'text-zinc-500 hover:text-zinc-300'
+                className={`flex flex-col items-center py-1 px-1 rounded-xl transition-all relative flex-1 min-w-0 cursor-pointer ${
+                  isActive ? 'text-emerald-400' : 'text-zinc-500 hover:text-zinc-300'
                 }`}
               >
                 <Icon className={`w-4 h-4 mb-0.5 shrink-0 ${isActive ? 'stroke-[2.5]' : 'stroke-2'}`} />
@@ -1092,7 +1092,7 @@ export default function App() {
                   {tab.label}
                 </span>
                 {isActive && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 absolute bottom-0 shadow-sm shadow-amber-400"></span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 absolute bottom-0 shadow-sm shadow-emerald-400"></span>
                 )}
               </button>
             );
@@ -1100,21 +1100,21 @@ export default function App() {
         </div>
       </nav>
 
-      {/* ================= MANDATORY SAP MODAL (BLOCKS EVERYTHING UNTIL ENTERED) ================= */}
+      {/* ================= MANDATORY EMPLOYEE CODE MODAL ================= */}
       {requiresSapNumber && (
         <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex items-center justify-center p-4 animate-fade-in font-['Cairo',sans-serif]">
-          <div className="w-full max-w-md bg-zinc-900 border-2 border-amber-500/70 rounded-3xl p-6 shadow-2xl shadow-amber-500/20 text-right space-y-4 relative">
+          <div className="w-full max-w-md bg-[#0E1118] border border-emerald-500/50 rounded-3xl p-6 shadow-2xl shadow-emerald-500/10 text-right space-y-4 relative">
             <div className="text-center space-y-2">
-              <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/40 flex items-center justify-center mx-auto text-amber-400 shadow-inner">
+              <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mx-auto text-emerald-400 shadow-inner">
                 <Shield className="w-8 h-8" />
               </div>
-              <h2 className="text-base font-black text-amber-400">مطلوب: تسجيل كود الـ SAP الخاص بك</h2>
+              <h2 className="text-base font-black text-white">مطلوب: تسجيل الرقم الوظيفي / كود الموظف</h2>
               <p className="text-xs text-zinc-300 leading-relaxed font-bold">
-                أهلاً بك يا <span className="text-amber-300 font-black">{liveUser?.name}</span>!
+                أهلاً بك يا <span className="text-emerald-300 font-black">{liveUser?.name}</span>!
               </p>
-              <div className="bg-amber-950/40 border border-amber-500/30 rounded-2xl p-3 text-start">
+              <div className="bg-emerald-950/40 border border-emerald-500/30 rounded-2xl p-3 text-start">
                 <p className="text-[11px] text-zinc-300 leading-relaxed">
-                  ⚠️ <b>تنبيه إجباري:</b> تم ربط نظام تسجيل الحضور والانصراف بمنظومة <b>SAP</b> الرسمية. لن تتمكن من تسجيل الحضور أو استخدام أي خاصية في التطبيق إلا بعد إدخال وتأكيد كود الـ SAP الخاص بك.
+                  ⚠️ <b>تنبيه إجباري:</b> لتأكيد هويتك وحماية حسابك الوظيفي، يرجى إدخال وتأكيد كود الموظف (أو كود الـ SAP المعتمد) لبدء تسجيل الحضور.
                 </p>
               </div>
             </div>
@@ -1129,8 +1129,8 @@ export default function App() {
             <form onSubmit={handleSaveMandatorySap} className="space-y-3 pt-1">
               <div>
                 <label className="block text-xs font-bold text-zinc-200 mb-1.5 flex items-center justify-between">
-                  <span>كود الـ SAP (الرقم الوظيفي في SAP):</span>
-                  <span className="text-[10px] text-amber-400 font-bold bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                  <span>الرقم الوظيفي / كود الموظف:</span>
+                  <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
                     إجباري
                   </span>
                 </label>
@@ -1138,34 +1138,34 @@ export default function App() {
                   type="text"
                   value={mandatorySapInput}
                   onChange={e => setMandatorySapInput(e.target.value)}
-                  placeholder="أدخل كود الـ SAP الخاص بك"
+                  placeholder="أدخل كود الموظف الخاص بك"
                   dir="ltr"
                   required
                   autoFocus
-                  className="w-full p-3.5 text-sm font-black text-left rounded-2xl bg-zinc-950 border-2 border-zinc-800 text-amber-400 placeholder:text-zinc-600 focus:outline-none focus:border-amber-500 font-mono tracking-wider"
+                  className="w-full p-3.5 text-sm font-black text-left rounded-2xl bg-[#08090C] border border-white/[0.08] text-emerald-400 placeholder:text-zinc-600 focus:outline-none focus:border-emerald-500 font-mono tracking-wider"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={mandatorySapLoading || !mandatorySapInput.trim()}
-                className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 disabled:opacity-50 text-black font-black text-xs shadow-lg shadow-amber-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+                className="w-full py-3.5 px-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-[#052e16] font-black text-xs shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
               >
                 {mandatorySapLoading ? (
                   <>
-                    <Loader2 className="w-4 h-4 animate-spin text-black" />
+                    <Loader2 className="w-4 h-4 animate-spin text-[#052e16]" />
                     <span>جاري التحقق والحفظ...</span>
                   </>
                 ) : (
                   <>
-                    <Save className="w-4 h-4 text-black" />
+                    <Save className="w-4 h-4 text-[#052e16]" />
                     <span>حفظ وتفعيل استخدام التطبيق</span>
                   </>
                 )}
               </button>
 
               <p className="text-[10px] text-zinc-500 text-center leading-normal pt-1">
-                في حال عدم معرفتك بكود الـ SAP الخاص بك، يرجى مراجعة إدارة الموارد البشرية أو مدير الفرع.
+                في حال عدم معرفتك بكودك الوظيفي، يرجى مراجعة إدارة الموارد البشرية أو مدير الفرع.
               </p>
             </form>
           </div>

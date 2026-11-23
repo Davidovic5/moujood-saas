@@ -470,22 +470,22 @@ export function CheckInTab({ currentUser, officeSettings, onAttendanceUpdated })
 
       {/* Approved Mission Today Banner */}
       {todayMission && (
-        <div className="bg-gradient-to-r from-amber-500/15 via-yellow-500/10 to-amber-500/15 border border-amber-500/40 p-4 rounded-3xl text-right space-y-1.5 shadow-lg animate-fade-in">
-          <div className="flex items-center gap-2 text-amber-400">
-            <Building2 className="w-5 h-5 text-amber-400 shrink-0" />
+        <div className="bg-emerald-500/10 border border-emerald-500/30 p-4 rounded-3xl text-right space-y-1.5 shadow-lg animate-fade-in">
+          <div className="flex items-center gap-2 text-emerald-400">
+            <Building2 className="w-5 h-5 text-emerald-400 shrink-0" />
             <span className="text-xs font-black">🎯 لديك مأمورية عمل معتمدة اليوم</span>
           </div>
           <p className="text-xs text-zinc-300 leading-relaxed font-bold">
-            متاح لك تسجيل الحضور والانصراف بحرية من أي من الموقعين: <span className="text-amber-300 font-black">فرعك الأساسي ({homeBranch.name})</span> أو <span className="text-amber-300 font-black">فرع المأمورية ({missionBranch?.name || todayMission.missionBranchName || 'فرع المأمورية'})</span>.
+            متاح لك تسجيل الحضور والانصراف بحرية من أي من الموقعين: <span className="text-emerald-300 font-black">فرعك الأساسي ({homeBranch.name})</span> أو <span className="text-emerald-300 font-black">فرع المأمورية ({missionBranch?.name || todayMission.missionBranchName || 'فرع المأمورية'})</span>.
           </p>
         </div>
       )}
 
       {/* GPS Location & Branch Card (Clean Production View - Real Phone GPS) */}
-      <div className="bg-zinc-900 rounded-3xl p-4 shadow-xl border border-zinc-800">
+      <div className="bg-[#0E1118] rounded-3xl p-4 sm:p-5 shadow-xl border border-white/[0.08]">
         <div className="flex items-center justify-between mb-3 gap-2">
           <div className="flex items-center gap-1.5 text-zinc-100 font-black text-xs min-w-0">
-            <Compass className="w-4 h-4 text-amber-400 shrink-0" />
+            <Compass className="w-4 h-4 text-emerald-400 shrink-0" />
             <span className="truncate">نطاق فرعك الجغرافي (GPS)</span>
           </div>
 
@@ -506,13 +506,13 @@ export function CheckInTab({ currentUser, officeSettings, onAttendanceUpdated })
           )}
         </div>
 
-        <div className="bg-zinc-950 p-3 rounded-2xl border border-zinc-800/80 text-xs text-zinc-300 space-y-2">
+        <div className="bg-[#08090C] p-3 rounded-2xl border border-white/[0.06] text-xs text-zinc-300 space-y-2">
           <div className="flex justify-between items-center">
             <span className="text-zinc-400 font-bold">الفرع المعتمد:</span>
-            <span className="font-black text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2.5 py-0.5 rounded-lg flex items-center gap-1 text-right">
-              <MapPin className="w-3 h-3 text-amber-500" />
+            <span className="font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-0.5 rounded-lg flex items-center gap-1 text-right">
+              <MapPin className="w-3 h-3 text-emerald-400" />
               <span>{distanceInfo.activeBranchName ? `فرع ${distanceInfo.activeBranchName}` : `فرع ${branch.name}`}</span>
-              {todayMission && <span className="text-[10px] text-amber-300 font-normal mr-1">(أو المأمورية)</span>}
+              {todayMission && <span className="text-[10px] text-emerald-300 font-normal mr-1">(أو المأمورية)</span>}
             </span>
           </div>
 
@@ -538,7 +538,7 @@ export function CheckInTab({ currentUser, officeSettings, onAttendanceUpdated })
         </div>
 
         {/* Quick Location Refresh Bar */}
-        <div className="pt-2.5 mt-2.5 border-t border-zinc-800 flex items-center justify-between text-[11px]">
+        <div className="pt-2.5 mt-2.5 border-t border-white/[0.06] flex items-center justify-between text-[11px]">
           <span className="text-zinc-400">
             {distanceInfo.checkedAt ? `آخر فحص: ${distanceInfo.checkedAt}` : 'يتم الفحص تلقائياً عبر GPS الهاتف'}
           </span>
@@ -546,7 +546,7 @@ export function CheckInTab({ currentUser, officeSettings, onAttendanceUpdated })
             type="button"
             onClick={() => refreshLocation(false)}
             disabled={gpsLoading}
-            className="py-1 px-2.5 rounded-lg font-bold bg-zinc-950 hover:bg-zinc-800 text-amber-400 border border-amber-500/30 transition-all flex items-center gap-1 disabled:opacity-50"
+            className="py-1 px-2.5 rounded-lg font-bold bg-[#08090C] hover:bg-zinc-800 text-emerald-400 border border-emerald-500/30 transition-all flex items-center gap-1 disabled:opacity-50 cursor-pointer"
           >
             <RefreshCw className={`w-3 h-3 ${gpsLoading ? 'animate-spin' : ''}`} />
             <span>{gpsLoading ? 'جاري الفحص...' : 'فحص الموقع الآن'}</span>
@@ -566,15 +566,15 @@ export function CheckInTab({ currentUser, officeSettings, onAttendanceUpdated })
               {safeTimeFormat(completedRecord.checkOutTime)}
             </span>
           </div>
-          <div className="text-xs text-zinc-300 bg-zinc-950/80 p-2.5 rounded-2xl border border-zinc-800 flex justify-between items-center">
+          <div className="text-xs text-zinc-300 bg-[#08090C] p-2.5 rounded-2xl border border-white/[0.06] flex justify-between items-center">
             <span className="text-zinc-400 font-bold">إجمالي ساعات العمل المسجلة:</span>
-            <span className="font-mono font-black text-amber-400">
+            <span className="font-mono font-black text-emerald-400">
               {Math.floor((Number(completedRecord.durationMinutes) || 0) / 60)} س و {Math.floor((Number(completedRecord.durationMinutes) || 0) % 60)} د
             </span>
           </div>
           {completedRecord.checkOutNotes && (
-            <div className="text-[11px] text-zinc-300 bg-zinc-950/60 p-2 rounded-xl border border-zinc-800/80">
-              <span className="font-bold text-amber-400">بيان الانصراف: </span>
+            <div className="text-[11px] text-zinc-300 bg-[#08090C] p-2 rounded-xl border border-white/[0.06]">
+              <span className="font-bold text-emerald-400">بيان الانصراف: </span>
               {completedRecord.checkOutNotes}
             </div>
           )}
@@ -582,13 +582,13 @@ export function CheckInTab({ currentUser, officeSettings, onAttendanceUpdated })
       )}
 
       {/* Main Attendance Card */}
-      <div className="bg-zinc-900 rounded-3xl p-5 sm:p-6 shadow-xl border border-amber-500/30 text-center relative overflow-hidden">
+      <div className="bg-[#0E1118] rounded-3xl p-5 sm:p-6 shadow-xl border border-white/[0.08] text-center relative overflow-hidden">
         {!currentAttendance ? (
           <div>
-            <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-zinc-950 flex items-center justify-center text-amber-400 border border-amber-500/30 shadow-inner">
+            <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-[#08090C] flex items-center justify-center text-emerald-400 border border-emerald-500/30 shadow-inner">
               <LogIn className="w-8 h-8 ml-0.5" />
             </div>
-            <h2 className="text-lg font-black text-amber-300 mb-1">تسجيل الحضور اليومي</h2>
+            <h2 className="text-lg font-black text-white mb-1">تسجيل الحضور اليومي</h2>
             <p className="text-xs text-zinc-400 mb-5 max-w-xs mx-auto leading-relaxed">
               اضغط الزر للتحقق من موقعك الحالي وتسجيل حضورك في <b>فرع {branch.name}</b> وبدء احتساب وردية الـ {shiftHours} ساعات.
             </p>
@@ -598,9 +598,9 @@ export function CheckInTab({ currentUser, officeSettings, onAttendanceUpdated })
               type="button"
               onClick={handleCheckIn}
               disabled={loading}
-              className="w-full py-3.5 px-4 rounded-2xl font-black text-xs sm:text-sm shadow-lg transition-all flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black shadow-amber-500/25 active:scale-[0.98] disabled:opacity-60 cursor-pointer"
+              className="w-full py-4 px-4 rounded-2xl font-black text-sm shadow-xl transition-all flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-[#052e16] shadow-emerald-500/25 active:scale-[0.98] disabled:opacity-60 cursor-pointer"
             >
-              <LogIn className="w-4 h-4 text-black shrink-0" />
+              <LogIn className="w-4 h-4 text-[#052e16] shrink-0" />
               <span className="truncate">{loading ? 'جاري التحقق من موقعك وتسجيل الحضور...' : `تسجيل الحضور في فرع ${branch.name}`}</span>
             </button>
           </div>
@@ -619,7 +619,7 @@ export function CheckInTab({ currentUser, officeSettings, onAttendanceUpdated })
             {/* Circular Timer Ring */}
             <div className="relative w-44 h-44 mx-auto mb-5 flex items-center justify-center">
               <svg className="w-full h-full transform -rotate-90">
-                <circle cx="88" cy="88" r="76" stroke="#27272a" strokeWidth="10" fill="transparent" />
+                <circle cx="88" cy="88" r="76" stroke="#1f2430" strokeWidth="10" fill="transparent" />
                 <circle
                   cx="88"
                   cy="88"
@@ -636,7 +636,7 @@ export function CheckInTab({ currentUser, officeSettings, onAttendanceUpdated })
 
               <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
                 <span className="text-[10px] font-bold text-zinc-400 mb-0.5">الوقت المنقضي</span>
-                <span className="text-2xl font-black font-mono text-amber-400 tracking-tight">
+                <span className="text-2xl font-black font-mono text-emerald-400 tracking-tight">
                   {formatTime(elapsedSeconds)}
                 </span>
                 <span className="text-[10px] font-bold text-zinc-400 mt-0.5">
@@ -646,33 +646,33 @@ export function CheckInTab({ currentUser, officeSettings, onAttendanceUpdated })
             </div>
 
             {/* Countdown Badge */}
-            <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-3 mb-4 text-xs flex items-center justify-between text-zinc-300">
+            <div className="bg-[#08090C] border border-white/[0.06] rounded-2xl p-3 mb-4 text-xs flex items-center justify-between text-zinc-300">
               <div className="flex items-center gap-1.5 text-zinc-400 font-bold">
-                <Timer className="w-4 h-4 text-amber-400" />
+                <Timer className="w-4 h-4 text-emerald-400" />
                 <span>المتبقي لانتهاء الـ {shiftHours} ساعات:</span>
               </div>
-              <span className={`font-mono font-black text-sm ${canCheckOutRegular ? 'text-emerald-400' : 'text-amber-400'}`}>
+              <span className={`font-mono font-black text-sm ${canCheckOutRegular ? 'text-emerald-400' : 'text-emerald-400'}`}>
                 {canCheckOutRegular ? 'اكتملت ساعات العمل 🎉' : formatTime(remainingSeconds)}
               </span>
             </div>
 
             {/* Pending Early Checkout Notice Card */}
             {isEarlyPending && (
-              <div className="bg-amber-950/80 border border-amber-500/60 p-4 rounded-2xl text-right mb-4 animate-pulse space-y-2">
+              <div className="bg-emerald-950/60 border border-emerald-500/60 p-4 rounded-2xl text-right mb-4 animate-pulse space-y-2">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-amber-400 font-black text-xs">
-                    <Hourglass className="w-4 h-4 text-amber-400 animate-spin" />
+                  <div className="flex items-center gap-2 text-emerald-400 font-black text-xs">
+                    <Hourglass className="w-4 h-4 text-emerald-400 animate-spin" />
                     <span>طلب انصراف طارئ قيد المراجعة</span>
                   </div>
-                  <span className="text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/40 px-2 py-0.5 rounded-full font-bold">
+                  <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-2 py-0.5 rounded-full font-bold">
                     بانتظار موافقة الإدارة
                   </span>
                 </div>
-                <div className="text-xs text-zinc-300 bg-zinc-950/80 p-2.5 rounded-xl border border-zinc-800">
+                <div className="text-xs text-zinc-300 bg-[#08090C] p-2.5 rounded-xl border border-white/[0.06]">
                   <span className="text-zinc-500 font-bold">السبب المرفوع: </span>
                   <span className="text-zinc-200 font-semibold">{todayEarlyRequest.reason}</span>
                 </div>
-                <p className="text-[11px] text-amber-300 font-bold">
+                <p className="text-[11px] text-emerald-300 font-bold">
                   ⚡ سيتم تسجيل انصرافك وإنهاء ورديتك تلقائياً فور موافقة الإدارة المختصة.
                 </p>
               </div>
@@ -697,13 +697,13 @@ export function CheckInTab({ currentUser, officeSettings, onAttendanceUpdated })
                 type="button"
                 onClick={() => handleCheckOut(false)}
                 disabled={loading || !canCheckOutRegular}
-                className={`w-full py-3.5 px-6 rounded-2xl font-black text-sm shadow-lg transition-all flex items-center justify-center gap-2 ${
+                className={`w-full py-4 px-6 rounded-2xl font-black text-sm shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer ${
                   canCheckOutRegular
-                    ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-emerald-500/25 active:scale-[0.98]'
+                    ? 'bg-emerald-500 hover:bg-emerald-400 text-[#052e16] shadow-emerald-500/25 active:scale-[0.98]'
                     : 'bg-zinc-800 text-zinc-500 cursor-not-allowed shadow-none'
                 }`}
               >
-                {canCheckOutRegular ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4 text-zinc-500" />}
+                {canCheckOutRegular ? <Unlock className="w-4 h-4 text-[#052e16]" /> : <Lock className="w-4 h-4 text-zinc-500" />}
                 <span>
                   {canCheckOutRegular 
                     ? 'تسجيل الانصراف (Check Out)' 
@@ -716,9 +716,9 @@ export function CheckInTab({ currentUser, officeSettings, onAttendanceUpdated })
                 <button
                   type="button"
                   onClick={() => setShowEarlyModal(true)}
-                  className="w-full py-2.5 px-3 rounded-xl text-xs font-black text-amber-400 bg-zinc-950 hover:bg-zinc-800 border border-amber-500/30 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                  className="w-full py-2.5 px-3 rounded-xl text-xs font-black text-emerald-400 bg-[#08090C] hover:bg-zinc-800 border border-emerald-500/30 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
                 >
-                  <AlertTriangle className="w-4 h-4 text-amber-400" />
+                  <AlertTriangle className="w-4 h-4 text-emerald-400" />
                   <span>
                     {isExecutiveOrManager 
                       ? 'تسجيل انصراف مبكر مباشر (صلاحية إدارية)' 
@@ -734,12 +734,12 @@ export function CheckInTab({ currentUser, officeSettings, onAttendanceUpdated })
       {/* Early Checkout Modal */}
       {showEarlyModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-zinc-900 rounded-3xl max-w-sm w-full p-5 shadow-2xl border border-amber-500/30 text-right animate-scale-up text-zinc-100">
-            <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/30 flex items-center justify-center mb-3">
+          <div className="bg-[#0E1118] rounded-3xl max-w-sm w-full p-5 shadow-2xl border border-white/[0.08] text-right animate-scale-up text-zinc-100">
+            <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center justify-center mb-3">
               <AlertTriangle className="w-5 h-5" />
             </div>
 
-            <h3 className="text-base font-black text-amber-400 mb-1">
+            <h3 className="text-base font-black text-white mb-1">
               {isExecutiveOrManager 
                 ? 'تسجيل انصراف مبكر (صلاحية إدارية)' 
                 : 'تقديم طلب انصراف مبكر طارئ'}
@@ -752,7 +752,7 @@ export function CheckInTab({ currentUser, officeSettings, onAttendanceUpdated })
             </p>
 
             {!isExecutiveOrManager && (
-              <div className="bg-amber-950/60 border border-amber-500/40 p-2.5 rounded-xl text-[11px] text-amber-300 font-bold mb-3 leading-relaxed">
+              <div className="bg-emerald-950/40 border border-emerald-500/30 p-2.5 rounded-xl text-[11px] text-emerald-300 font-bold mb-3 leading-relaxed">
                 ⚠️ تنبيه: لن يتم تسجيل الانصراف فوراً، بل سيصل إشعار للإدارة لاعتماده. فور الموافقة سيتم إنهاء الوردية تلقائياً.
               </div>
             )}
@@ -764,7 +764,7 @@ export function CheckInTab({ currentUser, officeSettings, onAttendanceUpdated })
                 onChange={e => setEarlyReason(e.target.value)}
                 placeholder="اكتب سبب الانصراف بالتفصيل..."
                 rows={3}
-                className="w-full p-2.5 text-xs rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-amber-500 resize-none font-bold"
+                className="w-full p-2.5 text-xs rounded-xl bg-[#08090C] border border-white/[0.08] text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-emerald-500 resize-none font-bold"
               />
             </div>
 
@@ -775,7 +775,7 @@ export function CheckInTab({ currentUser, officeSettings, onAttendanceUpdated })
                   setShowEarlyModal(false);
                   setEarlyReason('');
                 }}
-                className="flex-1 py-2.5 rounded-xl border border-zinc-800 text-xs font-bold text-zinc-300 hover:bg-zinc-800"
+                className="flex-1 py-2.5 rounded-xl border border-white/[0.08] text-xs font-bold text-zinc-300 hover:bg-zinc-800 cursor-pointer"
               >
                 إلغاء
               </button>
@@ -785,7 +785,7 @@ export function CheckInTab({ currentUser, officeSettings, onAttendanceUpdated })
                   type="button"
                   disabled={!earlyReason.trim() || loading}
                   onClick={() => handleCheckOut(true, earlyReason)}
-                  className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black text-xs font-black shadow-md shadow-amber-500/20 disabled:opacity-50"
+                  className="flex-1 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-[#052e16] text-xs font-black shadow-md shadow-emerald-500/20 disabled:opacity-50 cursor-pointer"
                 >
                   {loading ? 'جاري التأكيد...' : 'تأكيد الانصراف الفوري'}
                 </button>
@@ -794,9 +794,9 @@ export function CheckInTab({ currentUser, officeSettings, onAttendanceUpdated })
                   type="button"
                   disabled={!earlyReason.trim() || earlySubmitting}
                   onClick={handleEarlyCheckoutRequest}
-                  className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black text-xs font-black shadow-md shadow-amber-500/20 disabled:opacity-50 flex items-center justify-center gap-1.5"
+                  className="flex-1 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-[#052e16] text-xs font-black shadow-md shadow-emerald-500/20 disabled:opacity-50 flex items-center justify-center gap-1.5 cursor-pointer"
                 >
-                  <Send className="w-3.5 h-3.5" />
+                  <Send className="w-3.5 h-3.5 text-[#052e16]" />
                   <span>{earlySubmitting ? 'جاري الإرسال...' : 'إرسال للإدارة'}</span>
                 </button>
               )}
@@ -808,16 +808,16 @@ export function CheckInTab({ currentUser, officeSettings, onAttendanceUpdated })
       {/* 1-Tap Check-out Pulse Modal (نبض الفريق) */}
       {showPulseModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-3xl max-w-sm w-full space-y-4 text-center shadow-2xl animate-in fade-in zoom-in-95">
+          <div className="bg-[#0E1118] border border-white/[0.08] p-6 rounded-3xl max-w-sm w-full space-y-4 text-center shadow-2xl animate-in fade-in zoom-in-95">
             <div className="space-y-1">
-              <span className="text-[11px] text-amber-400 font-bold uppercase tracking-wider">نبض الفريق • مجهول الهوية 🔒</span>
+              <span className="text-[11px] text-emerald-400 font-bold uppercase tracking-wider">نبض الفريق • مجهول الهوية 🔒</span>
               <h3 className="text-lg font-black text-white">كيف كان يومك في العمل اليوم؟</h3>
               <p className="text-xs text-zinc-400">مشاركتك تساعد الإدارة على تحسين بيئة العمل وتخفيف الضغط.</p>
             </div>
 
             {pulseSubmitted ? (
               <div className="py-6 text-emerald-400 font-bold text-sm">
-                شكراً لمشاركتك! نتمنى لك يوماً سعيداً 💛
+                شكراً لمشاركتك! نتمنى لك يوماً سعيداً 💚
               </div>
             ) : (
               <div className="grid grid-cols-3 gap-3 py-2">
@@ -828,7 +828,7 @@ export function CheckInTab({ currentUser, officeSettings, onAttendanceUpdated })
                     setPulseSubmitted(true);
                     setTimeout(() => setShowPulseModal(false), 1200);
                   }}
-                  className="p-3 bg-zinc-950 border border-zinc-800 hover:border-emerald-500 rounded-2xl transition-all active:scale-95 space-y-1 group"
+                  className="p-3 bg-[#08090C] border border-white/[0.08] hover:border-emerald-500 rounded-2xl transition-all active:scale-95 space-y-1 group cursor-pointer"
                 >
                   <span className="text-3xl block group-hover:scale-110 transition-transform">😄</span>
                   <span className="text-xs font-bold text-zinc-300 block">مبسوط</span>
@@ -841,7 +841,7 @@ export function CheckInTab({ currentUser, officeSettings, onAttendanceUpdated })
                     setPulseSubmitted(true);
                     setTimeout(() => setShowPulseModal(false), 1200);
                   }}
-                  className="p-3 bg-zinc-950 border border-zinc-800 hover:border-amber-500 rounded-2xl transition-all active:scale-95 space-y-1 group"
+                  className="p-3 bg-[#08090C] border border-white/[0.08] hover:border-emerald-500 rounded-2xl transition-all active:scale-95 space-y-1 group cursor-pointer"
                 >
                   <span className="text-3xl block group-hover:scale-110 transition-transform">😐</span>
                   <span className="text-xs font-bold text-zinc-300 block">عادي</span>
@@ -854,7 +854,7 @@ export function CheckInTab({ currentUser, officeSettings, onAttendanceUpdated })
                     setPulseSubmitted(true);
                     setTimeout(() => setShowPulseModal(false), 1200);
                   }}
-                  className="p-3 bg-zinc-950 border border-zinc-800 hover:border-rose-500 rounded-2xl transition-all active:scale-95 space-y-1 group"
+                  className="p-3 bg-[#08090C] border border-white/[0.08] hover:border-rose-500 rounded-2xl transition-all active:scale-95 space-y-1 group cursor-pointer"
                 >
                   <span className="text-3xl block group-hover:scale-110 transition-transform">😫</span>
                   <span className="text-xs font-bold text-zinc-300 block">مضغوط</span>
