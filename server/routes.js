@@ -29,7 +29,7 @@ function getExpectedOrigins(req) {
     `${proto}://${host}`,
     `https://${host}`,
     `http://${host}`,
-    'https://office-attendance-app-sand.vercel.app',
+    'http://localhost:3001',
     'http://localhost:5173',
     'http://localhost:3000'
   ]);
