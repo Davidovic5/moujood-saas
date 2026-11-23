@@ -199,12 +199,12 @@ export function SaasGodModeDashboard({ onExit }) {
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-zinc-950 text-white flex flex-col items-center justify-center p-4 font-['Cairo',sans-serif]" dir="rtl">
-        <div className="bg-zinc-900 border border-amber-500/30 p-8 rounded-3xl max-w-md w-full shadow-2xl relative text-center">
-          <div className="w-16 h-16 bg-gradient-to-tr from-amber-500 to-yellow-400 text-black rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-amber-500/20">
+        <div className="bg-zinc-900 border border-emerald-500/30 p-8 rounded-3xl max-w-md w-full shadow-2xl relative text-center">
+          <div className="w-16 h-16 bg-gradient-to-tr from-emerald-500 to-teal-400 text-black rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-emerald-500/20">
             <Lock className="w-8 h-8" />
           </div>
 
-          <h2 className="text-xl font-black text-amber-400 mb-1">لوحة تحكم صاحب المنصة (God Mode)</h2>
+          <h2 className="text-xl font-black text-emerald-400 mb-1">لوحة تحكم صاحب المنصة (God Mode)</h2>
           <p className="text-xs text-zinc-400 mb-6">يرجى إدخال المفتاح السري للوصول إلى إدارة الشركات والإيرادات</p>
 
           <form onSubmit={handleLogin} className="space-y-4">
@@ -214,7 +214,7 @@ export function SaasGodModeDashboard({ onExit }) {
                 placeholder="أدخل مفتاح الإدارة السري..."
                 value={keyInput}
                 onChange={(e) => setKeyInput(e.target.value)}
-                className="w-full bg-zinc-950 border border-zinc-700 focus:border-amber-500 text-white p-3 rounded-xl text-center text-sm outline-none transition-colors"
+                className="w-full bg-zinc-950 border border-zinc-700 focus:border-emerald-500 text-white p-3 rounded-xl text-center text-sm outline-none transition-colors"
                 autoFocus
               />
             </div>
@@ -228,7 +228,7 @@ export function SaasGodModeDashboard({ onExit }) {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black font-black py-3 rounded-xl shadow-lg transition-all active:scale-[0.98] disabled:opacity-50"
+              className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-black font-black py-3 rounded-xl shadow-lg transition-all active:scale-[0.98] disabled:opacity-50"
             >
               {loading ? 'جاري التحقق...' : 'دخول لوحة التحكم'}
             </button>
@@ -252,16 +252,16 @@ export function SaasGodModeDashboard({ onExit }) {
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col font-['Cairo',sans-serif]" dir="rtl">
       {/* Top Navigation */}
-      <header className="sticky top-0 z-40 bg-zinc-900/90 backdrop-blur-md border-b border-amber-500/20 px-4 py-3 shadow-md">
+      <header className="sticky top-0 z-40 bg-zinc-900/90 backdrop-blur-md border-b border-emerald-500/20 px-4 py-3 shadow-md">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400">
+            <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
               <ShieldAlert className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-sm font-black text-amber-400">منظومة موجود • لوحة الإدارة العليا (Moujood SaaS)</h1>
-                <span className="text-[10px] bg-amber-500 text-black font-black px-2 py-0.5 rounded-full">
+                <h1 className="text-sm font-black text-emerald-400">منظومة موجود • لوحة الإدارة العليا (Moujood SaaS)</h1>
+                <span className="text-[10px] bg-emerald-500 text-black font-black px-2 py-0.5 rounded-full">
                   GOD MODE
                 </span>
               </div>
@@ -275,7 +275,7 @@ export function SaasGodModeDashboard({ onExit }) {
               className="p-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors"
               title="تحديث البيانات"
             >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-amber-400' : ''}`} />
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-emerald-400' : ''}`} />
             </button>
             {onExit && (
               <button
@@ -302,14 +302,14 @@ export function SaasGodModeDashboard({ onExit }) {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           
           {/* Card 1: MRR & Target 50,000 EGP */}
-          <div className="bg-gradient-to-br from-zinc-900 to-zinc-950 border border-amber-500/30 p-5 rounded-3xl relative overflow-hidden shadow-lg">
+          <div className="bg-gradient-to-br from-zinc-900 to-zinc-950 border border-emerald-500/30 p-5 rounded-3xl relative overflow-hidden shadow-lg">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-bold text-zinc-400">الدخل الشهري المتكرر (MRR)</span>
-              <div className="p-2 bg-amber-500/10 text-amber-400 rounded-xl">
+              <div className="p-2 bg-emerald-500/10 text-emerald-400 rounded-xl">
                 <DollarSign className="w-4 h-4" />
               </div>
             </div>
-            <div className="text-2xl font-black text-amber-400 font-mono mb-1">
+            <div className="text-2xl font-black text-emerald-400 font-mono mb-1">
               {mrr.toLocaleString('ar-EG')} <span className="text-xs font-normal text-zinc-400">ج.م / شهرياً</span>
             </div>
             
@@ -317,11 +317,11 @@ export function SaasGodModeDashboard({ onExit }) {
             <div className="mt-3 space-y-1">
               <div className="flex justify-between text-[10px] text-zinc-400">
                 <span>الهدف الشهري: 50,000 ج.م</span>
-                <span className="font-bold text-amber-400">{targetPercent}%</span>
+                <span className="font-bold text-emerald-400">{targetPercent}%</span>
               </div>
               <div className="w-full bg-zinc-800 h-2 rounded-full overflow-hidden">
                 <div 
-                  className="bg-gradient-to-r from-amber-500 to-yellow-400 h-full rounded-full transition-all duration-500" 
+                  className="bg-gradient-to-r from-emerald-500 to-teal-400 h-full rounded-full transition-all duration-500" 
                   style={{ width: `${targetPercent}%` }}
                 />
               </div>
@@ -346,7 +346,7 @@ export function SaasGodModeDashboard({ onExit }) {
               <span className="bg-blue-950 text-blue-400 border border-blue-800 px-2 py-0.5 rounded-md font-bold">
                 {stats?.trialTenants || 0} تجريبي
               </span>
-              <span className="bg-amber-950 text-amber-400 border border-amber-800 px-2 py-0.5 rounded-md font-bold">
+              <span className="bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded-md font-bold">
                 {stats?.pastDueTenants || 0} متأخر
               </span>
             </div>
@@ -371,22 +371,22 @@ export function SaasGodModeDashboard({ onExit }) {
             onClick={() => setActiveTab('payments')}
             className={`cursor-pointer border p-5 rounded-3xl shadow-lg transition-all ${
               pendingPayments.length > 0
-                ? 'bg-gradient-to-br from-amber-950/40 to-zinc-900 border-amber-500 hover:border-amber-400'
+                ? 'bg-gradient-to-br from-emerald-950/40 to-zinc-900 border-emerald-500 hover:border-amber-400'
                 : 'bg-zinc-900 border-zinc-800'
             }`}
           >
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-bold text-zinc-400">تحويلات إنستاباي بانتظار الاعتماد</span>
-              <div className="p-2 bg-amber-500/10 text-amber-400 rounded-xl">
+              <div className="p-2 bg-emerald-500/10 text-emerald-400 rounded-xl">
                 <CreditCard className="w-4 h-4" />
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-2xl font-black text-amber-400 font-mono">
+              <span className="text-2xl font-black text-emerald-400 font-mono">
                 {pendingPayments.length}
               </span>
               {pendingPayments.length > 0 && (
-                <span className="text-[10px] bg-amber-500 text-black px-2 py-0.5 rounded-full font-black animate-pulse">
+                <span className="text-[10px] bg-emerald-500 text-black px-2 py-0.5 rounded-full font-black animate-pulse">
                   مطلوب مراجعتها الآن ⚡
                 </span>
               )}
@@ -402,7 +402,7 @@ export function SaasGodModeDashboard({ onExit }) {
             onClick={() => setActiveTab('tenants')}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
               activeTab === 'tenants'
-                ? 'bg-amber-500 text-black shadow-md'
+                ? 'bg-emerald-500 text-black shadow-md'
                 : 'bg-zinc-900 text-zinc-400 hover:text-white'
             }`}
           >
@@ -412,7 +412,7 @@ export function SaasGodModeDashboard({ onExit }) {
             onClick={() => setActiveTab('payments')}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
               activeTab === 'payments'
-                ? 'bg-amber-500 text-black shadow-md'
+                ? 'bg-emerald-500 text-black shadow-md'
                 : 'bg-zinc-900 text-zinc-400 hover:text-white'
             }`}
           >
@@ -437,7 +437,7 @@ export function SaasGodModeDashboard({ onExit }) {
                   placeholder="ابحث بالاسم أو الرابط الفرعي أو الهاتف..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-zinc-900 border border-zinc-800 focus:border-amber-500 text-xs text-white pr-9 pl-3 py-2.5 rounded-xl outline-none"
+                  className="w-full bg-zinc-900 border border-zinc-800 focus:border-emerald-500 text-xs text-white pr-9 pl-3 py-2.5 rounded-xl outline-none"
                 />
               </div>
 
@@ -454,7 +454,7 @@ export function SaasGodModeDashboard({ onExit }) {
                     onClick={() => setStatusFilter(f.id)}
                     className={`text-xs px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors ${
                       statusFilter === f.id
-                        ? 'bg-zinc-800 text-amber-400 font-bold border border-amber-500/40'
+                        ? 'bg-zinc-800 text-emerald-400 font-bold border border-emerald-500/40'
                         : 'text-zinc-400 hover:text-white'
                     }`}
                   >
@@ -491,7 +491,7 @@ export function SaasGodModeDashboard({ onExit }) {
                         <tr key={t.tenantId} className="hover:bg-zinc-850/50 transition-colors">
                           <td className="p-3.5">
                             <div className="font-black text-white text-sm">{t.name}</div>
-                            <div className="text-[11px] text-amber-400 font-mono mt-0.5 flex items-center gap-1" dir="ltr">
+                            <div className="text-[11px] text-emerald-400 font-mono mt-0.5 flex items-center gap-1" dir="ltr">
                               <span>{t.slug}.attendance.app</span>
                             </div>
                           </td>
@@ -519,7 +519,7 @@ export function SaasGodModeDashboard({ onExit }) {
                               </span>
                             )}
                             {t.status === 'past_due' && (
-                              <span className="text-[10px] bg-amber-950 text-amber-400 border border-amber-800 px-2 py-0.5 rounded-md font-bold">
+                              <span className="text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded-md font-bold">
                                 منتهي / متأخر
                               </span>
                             )}
@@ -550,7 +550,7 @@ export function SaasGodModeDashboard({ onExit }) {
                                 setActionStatus(t.status);
                                 setActionMonths(1);
                               }}
-                              className="text-xs bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 px-3 py-1.5 rounded-xl font-bold transition-colors"
+                              className="text-xs bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-3 py-1.5 rounded-xl font-bold transition-colors"
                             >
                               إدارة الاشتراك
                             </button>
@@ -569,7 +569,7 @@ export function SaasGodModeDashboard({ onExit }) {
         {activeTab === 'payments' && (
           <div className="space-y-4">
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden shadow-lg p-4">
-              <h3 className="text-sm font-black text-amber-400 mb-3 flex items-center gap-2">
+              <h3 className="text-sm font-black text-emerald-400 mb-3 flex items-center gap-2">
                 <CreditCard className="w-4 h-4" />
                 <span>سجل تحويلات إنستاباي وتأكيدات الدفع</span>
               </h3>
@@ -588,9 +588,9 @@ export function SaasGodModeDashboard({ onExit }) {
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
                           <span className="font-black text-white text-sm">{p.companyName}</span>
-                          <span className="text-[10px] text-amber-400 font-mono">({p.tenantSlug})</span>
+                          <span className="text-[10px] text-emerald-400 font-mono">({p.tenantSlug})</span>
                           {p.status === 'pending' && (
-                            <span className="text-[10px] bg-amber-500 text-black px-2 py-0.2 rounded font-black">
+                            <span className="text-[10px] bg-emerald-500 text-black px-2 py-0.2 rounded font-black">
                               بانتظار التأكيد ⚡
                             </span>
                           )}
@@ -608,7 +608,7 @@ export function SaasGodModeDashboard({ onExit }) {
 
                         <div className="text-xs text-zinc-400 flex items-center gap-4 flex-wrap">
                           <span>الباقة: <b>{p.plan}</b></span>
-                          <span>المبلغ: <b className="text-amber-400">{p.amount} ج.م</b> ({p.billingCycle === 'yearly' ? 'سنوي' : 'شهري'})</span>
+                          <span>المبلغ: <b className="text-emerald-400">{p.amount} ج.م</b> ({p.billingCycle === 'yearly' ? 'سنوي' : 'شهري'})</span>
                           {p.instapayReference && (
                             <span>رقم العملية: <b className="font-mono text-zinc-200">{p.instapayReference}</b></span>
                           )}
@@ -671,9 +671,9 @@ export function SaasGodModeDashboard({ onExit }) {
       {/* ================= MODAL: EDIT TENANT SUBSCRIPTION ================= */}
       {selectedTenant && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-zinc-900 border border-amber-500/30 p-6 rounded-3xl max-w-md w-full shadow-2xl space-y-4 text-right">
+          <div className="bg-zinc-900 border border-emerald-500/30 p-6 rounded-3xl max-w-md w-full shadow-2xl space-y-4 text-right">
             <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
-              <h3 className="text-sm font-black text-amber-400">إدارة اشتراك: {selectedTenant.name}</h3>
+              <h3 className="text-sm font-black text-emerald-400">إدارة اشتراك: {selectedTenant.name}</h3>
               <button onClick={() => setSelectedTenant(null)} className="text-zinc-400 hover:text-white">
                 <X className="w-4 h-4" />
               </button>
@@ -717,7 +717,7 @@ export function SaasGodModeDashboard({ onExit }) {
                       onClick={() => setActionMonths(m)}
                       className={`p-2 rounded-xl text-xs font-bold border transition-colors ${
                         actionMonths === m
-                          ? 'bg-amber-500 text-black border-amber-500'
+                          ? 'bg-emerald-500 text-black border-emerald-500'
                           : 'bg-zinc-950 text-zinc-300 border-zinc-800'
                       }`}
                     >
@@ -732,7 +732,7 @@ export function SaasGodModeDashboard({ onExit }) {
               <button
                 onClick={handleUpdateTenantSubscription}
                 disabled={actionLoading}
-                className="flex-1 bg-amber-500 hover:bg-amber-400 text-black font-black py-2.5 rounded-xl transition-all disabled:opacity-50"
+                className="flex-1 bg-emerald-500 hover:bg-emerald-400 text-black font-black py-2.5 rounded-xl transition-all disabled:opacity-50"
               >
                 {actionLoading ? 'جاري الحفظ...' : 'حفظ وتحديث الاشتراك'}
               </button>

@@ -3,11 +3,11 @@
 :root {
   color-scheme: dark;
 
-  /* Brand Theme Accent (White-Label Dynamic Custom Properties) */
-  --brand-primary: #f59e0b;
-  --brand-primary-hover: #d97706;
-  --brand-contrast-text: #000000;
-  --brand-accent-glow: rgba(245, 158, 11, 0.25);
+  /* Brand Theme Accent (White-Label Dynamic Custom Properties) - Emerald Mint */
+  --brand-primary: #10b981;
+  --brand-primary-hover: #059669;
+  --brand-contrast-text: #ffffff;
+  --brand-accent-glow: rgba(16, 185, 129, 0.30);
 
   /* Zinc Palette - Dark Mode Default */
   --zinc-50: #fafafa;
@@ -23,19 +23,19 @@
   --zinc-900: #18181b;
   --zinc-950: #09090b;
 
-  /* Amber Palette - Dark Mode */
-  --amber-300: #fcd34d;
-  --amber-400: #fbbf24;
-  --amber-500: #f59e0b;
-  --amber-600: #d97706;
-  --amber-700: #b45309;
-  --amber-800: #92400e;
-  --amber-900: #78350f;
-  --amber-950: #451a03;
+  /* Emerald Mint Brand Palette - Dark Mode (Mapped from legacy accent classes) */
+  --amber-300: #6ee7b7;
+  --amber-400: #34d399;
+  --amber-500: #10b981;
+  --amber-600: #059669;
+  --amber-700: #047857;
+  --amber-800: #065f46;
+  --amber-900: #064e3b;
+  --amber-950: #022c22;
 
-  /* Yellow Palette */
-  --yellow-400: #facc15;
-  --yellow-500: #eab308;
+  /* Yellow Palette mapped to Emerald Mint */
+  --yellow-400: #34d399;
+  --yellow-500: #10b981;
 
   /* Emerald Palette */
   --emerald-300: #6ee7b7;
@@ -77,19 +77,19 @@ html.light,
   --zinc-900: #ffffff;
   --zinc-950: #f8fafc;
 
-  /* Amber Palette - Light Mode: High-contrast rich luxury bronze-gold */
-  --amber-300: #92400e;
-  --amber-400: #b45309;
-  --amber-500: #d97706;
-  --amber-600: #b45309;
-  --amber-700: #92400e;
-  --amber-800: #78350f;
-  --amber-900: #451a03;
-  --amber-950: #fef3c7;
+  /* Emerald Mint Palette - Light Mode: Crisp high-contrast Emerald */
+  --amber-300: #047857;
+  --amber-400: #059669;
+  --amber-500: #10b981;
+  --amber-600: #047857;
+  --amber-700: #065f46;
+  --amber-800: #064e3b;
+  --amber-900: #022c22;
+  --amber-950: #d1fae5;
 
-  /* Yellow Palette */
-  --yellow-400: #ca8a04;
-  --yellow-500: #b45309;
+  /* Yellow Palette mapped to Emerald Mint */
+  --yellow-400: #059669;
+  --yellow-500: #10b981;
 
   /* Emerald Palette - Light Mode */
   --emerald-300: #047857;

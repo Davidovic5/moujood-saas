@@ -40,10 +40,10 @@ export const companyConfig: CompanyConfig = {
   logoPath: "/brand/logo.svg",
   faviconPath: "/brand/favicon.svg",
   theme: {
-    primary: "#EAB308",         // Default sleek gold/amber primary
-    primaryHover: "#CA8A04",
-    contrastText: "#000000",
-    accentGlow: "rgba(234, 179, 8, 0.25)"
+    primary: "#10B981",         // Smart Emerald Mint (رمز الحضور والنشاط لموجود)
+    primaryHover: "#059669",
+    contrastText: "#FFFFFF",
+    accentGlow: "rgba(16, 185, 129, 0.30)"
   },
   defaults: {
     timezone: "Africa/Cairo",

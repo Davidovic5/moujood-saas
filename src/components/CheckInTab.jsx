@@ -624,7 +624,7 @@ export function CheckInTab({ currentUser, officeSettings, onAttendanceUpdated })
                   cx="88"
                   cy="88"
                   r="76"
-                  stroke={canCheckOutRegular ? '#10b981' : '#f59e0b'}
+                  stroke={canCheckOutRegular ? '#10b981' : '#34d399'}
                   strokeWidth="10"
                   strokeDasharray={2 * Math.PI * 76}
                   strokeDashoffset={2 * Math.PI * 76 * (1 - progressPercent / 100)}
