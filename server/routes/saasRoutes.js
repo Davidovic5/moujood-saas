@@ -116,36 +116,41 @@ router.post('/sandbox-login', async (req, res) => {
       const b1 = new Branch({
         id: crypto.randomUUID(),
         tenantId: sandboxTenantId,
+        code: 'branch_tagamoa',
         name: 'الفرع الرئيسي - التجمع الخامس',
         city: 'القاهرة الجديدة',
-        sector: 'القاهرة',
+        sectorId: 'sector_cairo',
+        sectorName: 'القاهرة الكبرى',
         latitude: 30.0254,
         longitude: 31.4721,
-        allowedRadiusMeters: 150,
+        radiusMeters: 150,
         isArchived: false
       });
       const b2 = new Branch({
         id: crypto.randomUUID(),
         tenantId: sandboxTenantId,
+        code: 'branch_maadi',
         name: 'فرع المعادي الدائري',
         city: 'المعادي',
-        sector: 'القاهرة',
+        sectorId: 'sector_cairo',
+        sectorName: 'القاهرة الكبرى',
         latitude: 29.9821,
         longitude: 31.3056,
-        allowedRadiusMeters: 100,
+        radiusMeters: 100,
         isArchived: false
       });
       await Promise.all([b1.save(), b2.save()]);
 
       // Seed Demo Admin Employee
-      const hashedPassword = await bcrypt.hash('DemoPassword123!', 10);
       const demoAdmin = new Employee({
         id: crypto.randomUUID(),
         tenantId: sandboxTenantId,
         name: 'ديفيد - المدير العام التجريبي',
         phone: '01099998888',
-        password: hashedPassword,
+        password: 'DemoPassword123!',
         nationalId: '29901010101010',
+        titleCode: 'executive_director',
+        jobTitle: 'المدير التنفيذي (Executive Director)',
         branchId: b1.id,
         branchName: b1.name,
         role: {
@@ -175,6 +180,41 @@ router.post('/sandbox-login', async (req, res) => {
     let admin = await Employee.findOne({ tenantId: sandboxTenantId, isSuperAdmin: true }).lean();
     if (!admin) {
       admin = await Employee.findOne({ tenantId: sandboxTenantId }).lean();
+    }
+    if (!admin) {
+      const newAdmin = new Employee({
+        id: crypto.randomUUID(),
+        tenantId: sandboxTenantId,
+        name: 'ديفيد - المدير العام التجريبي',
+        phone: '01099998888',
+        password: 'DemoPassword123!',
+        nationalId: '29901010101010',
+        titleCode: 'executive_director',
+        jobTitle: 'المدير التنفيذي (Executive Director)',
+        branchId: 'branch_tagamoa',
+        branchName: 'الفرع الرئيسي - التجمع الخامس',
+        role: {
+          nameAr: 'المدير التنفيذي (Executive Director)',
+          isSystemAdmin: true,
+          permissions: {
+            canCheckIn: true,
+            canViewReports: true,
+            canApproveLeaves: true,
+            canManageEmployees: true,
+            canManageBranches: true,
+            canResetPasswords: true,
+            canDeleteEmployees: true
+          }
+        },
+        basicSalary: 25000,
+        annualLeaveBalance: 21,
+        remainingExcuseHours: 2,
+        isSuperAdmin: true,
+        deviceLockEnabled: false,
+        isActive: true
+      });
+      await newAdmin.save();
+      admin = newAdmin.toObject();
     }
 
     const token = jwt.sign(
