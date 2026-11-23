@@ -97,6 +97,10 @@ export function CheckInTab({ currentUser, officeSettings, onAttendanceUpdated })
   const [showEarlyModal, setShowEarlyModal] = useState(false);
   const [earlyReason, setEarlyReason] = useState('');
 
+  // 1-Tap Check-out Pulse state
+  const [showPulseModal, setShowPulseModal] = useState(false);
+  const [pulseSubmitted, setPulseSubmitted] = useState(false);
+
   const shiftHours = officeSettings?.shiftHours || 8;
   const shiftSeconds = shiftHours * 3600;
 
@@ -384,6 +388,7 @@ export function CheckInTab({ currentUser, officeSettings, onAttendanceUpdated })
         setCurrentAttendance(null);
         setShowEarlyModal(false);
         setEarlyReason('');
+        setShowPulseModal(true);
         if (onAttendanceUpdated) onAttendanceUpdated();
         fetchAttendance();
       } else {
@@ -796,6 +801,74 @@ export function CheckInTab({ currentUser, officeSettings, onAttendanceUpdated })
                 </button>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 1-Tap Check-out Pulse Modal (نبض الفريق) */}
+      {showPulseModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-3xl max-w-sm w-full space-y-4 text-center shadow-2xl animate-in fade-in zoom-in-95">
+            <div className="space-y-1">
+              <span className="text-[11px] text-amber-400 font-bold uppercase tracking-wider">نبض الفريق • مجهول الهوية 🔒</span>
+              <h3 className="text-lg font-black text-white">كيف كان يومك في العمل اليوم؟</h3>
+              <p className="text-xs text-zinc-400">مشاركتك تساعد الإدارة على تحسين بيئة العمل وتخفيف الضغط.</p>
+            </div>
+
+            {pulseSubmitted ? (
+              <div className="py-6 text-emerald-400 font-bold text-sm">
+                شكراً لمشاركتك! نتمنى لك يوماً سعيداً 💛
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 gap-3 py-2">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await api.submitPulse({ mood: 'happy' }).catch(() => {});
+                    setPulseSubmitted(true);
+                    setTimeout(() => setShowPulseModal(false), 1200);
+                  }}
+                  className="p-3 bg-zinc-950 border border-zinc-800 hover:border-emerald-500 rounded-2xl transition-all active:scale-95 space-y-1 group"
+                >
+                  <span className="text-3xl block group-hover:scale-110 transition-transform">😄</span>
+                  <span className="text-xs font-bold text-zinc-300 block">مبسوط</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await api.submitPulse({ mood: 'neutral' }).catch(() => {});
+                    setPulseSubmitted(true);
+                    setTimeout(() => setShowPulseModal(false), 1200);
+                  }}
+                  className="p-3 bg-zinc-950 border border-zinc-800 hover:border-amber-500 rounded-2xl transition-all active:scale-95 space-y-1 group"
+                >
+                  <span className="text-3xl block group-hover:scale-110 transition-transform">😐</span>
+                  <span className="text-xs font-bold text-zinc-300 block">عادي</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await api.submitPulse({ mood: 'stressed' }).catch(() => {});
+                    setPulseSubmitted(true);
+                    setTimeout(() => setShowPulseModal(false), 1200);
+                  }}
+                  className="p-3 bg-zinc-950 border border-zinc-800 hover:border-rose-500 rounded-2xl transition-all active:scale-95 space-y-1 group"
+                >
+                  <span className="text-3xl block group-hover:scale-110 transition-transform">😫</span>
+                  <span className="text-xs font-bold text-zinc-300 block">مضغوط</span>
+                </button>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setShowPulseModal(false)}
+              className="text-xs text-zinc-500 hover:text-zinc-300 pt-1"
+            >
+              تخطي
+            </button>
           </div>
         </div>
       )}

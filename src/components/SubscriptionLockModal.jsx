@@ -25,9 +25,10 @@ export function SubscriptionLockModal({ isOpen, lockInfo, onPaymentSubmitted }) 
   if (!isOpen) return null;
 
   const paymentInfo = lockInfo?.paymentInfo || {
-    instapayUsername: 'smartattendance@instapay',
-    instapayPhone: '01000000000',
-    accountName: 'منظومة الحضور الذكي'
+    instapayUsername: 'davidovic',
+    instapayUrl: 'https://ipn.eg/S/davidovic/instapay/3BW08C',
+    instapayPhone: 'davidovic',
+    accountName: 'David / موجود Moujood'
   };
 
   const plans = {
@@ -215,6 +216,16 @@ export function SubscriptionLockModal({ isOpen, lockInfo, onPaymentSubmitted }) 
                   <span className="text-zinc-400">المبلغ المطلوب تحويله:</span>
                   <span className="font-bold text-emerald-400 font-mono text-sm">{amountToPay} ج.م</span>
                 </div>
+
+                <a
+                  href="https://ipn.eg/S/davidovic/instapay/3BW08C"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs shadow-md transition-all active:scale-95"
+                >
+                  <span>⚡ فتح تطبيق إنستاباي للدفع المباشر</span>
+                  <span className="text-[10px] bg-white/20 px-1.5 py-0.5 rounded">بنقرة واحدة</span>
+                </a>
               </div>
             </div>
 

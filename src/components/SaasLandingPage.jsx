@@ -22,10 +22,27 @@ import {
   PhoneCall
 } from 'lucide-react';
 
-export function SaasLandingPage({ onOpenRegister, onOpenGodMode, onGoToTenantLogin }) {
+export function SaasLandingPage({ onOpenRegister, onOpenGodMode, onGoToTenantLogin, onSandboxLogin }) {
   const [billingCycle, setBillingCycle] = useState('monthly'); // 'monthly' | 'yearly'
   const [employeeCountSlider, setEmployeeCountSlider] = useState(25);
   const [openFaqIndex, setOpenFaqIndex] = useState(0);
+  const [sandboxLoading, setSandboxLoading] = useState(false);
+
+  const handleSandboxClick = async () => {
+    setSandboxLoading(true);
+    try {
+      const res = await api.sandboxLogin();
+      if (res.success && onSandboxLogin) {
+        onSandboxLogin(res);
+      } else {
+        alert(res.error || 'تعذر تشغيل وضع التجربة الحية');
+      }
+    } catch (e) {
+      alert('خطأ أثناء تشغيل وضع التجربة');
+    } finally {
+      setSandboxLoading(false);
+    }
+  };
 
   // Pricing definitions (1000, 3000, 5000 EGP)
   const plans = [
@@ -132,6 +149,15 @@ export function SaasLandingPage({ onOpenRegister, onOpenGodMode, onGoToTenantLog
 
           {/* Action Buttons */}
           <div className="flex items-center gap-2 sm:gap-3">
+            <button
+              onClick={handleSandboxClick}
+              disabled={sandboxLoading}
+              className="text-xs bg-purple-950/60 hover:bg-purple-900/60 text-purple-300 px-3.5 py-2 rounded-xl border border-purple-800 transition-colors font-bold flex items-center gap-1.5"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+              <span>{sandboxLoading ? 'جاري الفتح...' : 'تجربة حية فورية ⚡'}</span>
+            </button>
+
             {onGoToTenantLogin && (
               <button
                 onClick={onGoToTenantLogin}
@@ -181,16 +207,25 @@ export function SaasLandingPage({ onOpenRegister, onOpenGodMode, onGoToTenantLog
               onClick={() => onOpenRegister('growth')}
               className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black font-black text-base rounded-2xl shadow-xl shadow-amber-500/25 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
             >
-              <span>ابدأ التجربة المجانية لشركتك الآن (14 يوم)</span>
+              <span>ابدأ التجربة المجانية لشركتك (14 يوم)</span>
               <ArrowLeft className="w-5 h-5" />
+            </button>
+
+            <button
+              onClick={handleSandboxClick}
+              disabled={sandboxLoading}
+              className="w-full sm:w-auto px-6 py-4 bg-purple-950/40 hover:bg-purple-900/40 text-purple-200 border border-purple-800/80 font-black text-sm rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-purple-950/30"
+            >
+              <Sparkles className="w-4 h-4 text-purple-400" />
+              <span>{sandboxLoading ? 'جاري تهيئة التجربة الحية...' : 'جرّب الداشبورد فوراً بدون تسجيل (Sandbox) ⚡'}</span>
             </button>
 
             <a
               href="#pricing"
-              className="w-full sm:w-auto px-6 py-4 bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-zinc-800 font-bold text-sm rounded-2xl transition-all flex items-center justify-center gap-2"
+              className="w-full sm:w-auto px-5 py-4 bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-zinc-800 font-bold text-sm rounded-2xl transition-all flex items-center justify-center gap-2"
             >
               <CreditCard className="w-4 h-4 text-amber-400" />
-              <span>خطط الأسعار والدفع بـ InstaPay</span>
+              <span>الأسعار والدفع بـ InstaPay</span>
             </a>
           </div>
 
@@ -490,19 +525,24 @@ export function SaasLandingPage({ onOpenRegister, onOpenGodMode, onGoToTenantLog
           </div>
 
           {/* InstaPay Payment Guarantee Badge */}
-          <div className="bg-zinc-950 border border-zinc-800 p-6 rounded-3xl max-w-2xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-right">
+          <div className="bg-zinc-950 border border-purple-900/40 p-6 rounded-3xl max-w-2xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-right shadow-xl shadow-purple-950/20">
             <div className="flex items-center gap-3">
               <div className="p-3 bg-purple-500/10 text-purple-400 rounded-2xl shrink-0">
                 <CreditCard className="w-6 h-6" />
               </div>
               <div>
                 <h4 className="font-black text-white text-sm">الدفع السريع والمباشر عبر InstaPay</h4>
-                <p className="text-xs text-zinc-400 mt-0.5">تحويل آمن بدون عمولات بنكية من أي بنك أو محفظة في مصر مع تفعيل فوري لمنظومتك.</p>
+                <p className="text-xs text-zinc-400 mt-0.5">تحويل فوري وآمن بدون عمولات بنكية من أي بنك أو محفظة في مصر مع تفعيل فوري لمنظومتك.</p>
               </div>
             </div>
-            <span className="text-xs bg-purple-950 text-purple-300 border border-purple-800 px-3 py-1.5 rounded-xl font-bold whitespace-nowrap">
-              إنستاباي معتمد ⚡
-            </span>
+            <a
+              href="https://ipn.eg/S/davidovic/instapay/3BW08C"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white border border-purple-400/30 px-4 py-2.5 rounded-xl font-bold whitespace-nowrap shadow-md transition-all active:scale-95 flex items-center gap-1.5"
+            >
+              <span>تحويل إنستاباي مباشر ⚡</span>
+            </a>
           </div>
 
         </div>

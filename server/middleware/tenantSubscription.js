@@ -12,11 +12,12 @@ const { DEFAULT_TENANT_ID } = require('../config/env');
 
 // Platform-level InstaPay details for client payments
 const PLATFORM_PAYMENT_CONFIG = {
-  instapayUsername: process.env.SAAS_INSTAPAY_USERNAME || 'smartattendance@instapay',
-  instapayPhone: process.env.SAAS_INSTAPAY_PHONE || '01000000000',
-  bankName: 'البنك التجاري الدولي (CIB) / فودافون كاش / إنستاباي',
-  accountName: 'منصة موجود الذكية Moujood SaaS',
-  notes: 'يرجى كتابة اسم الشركة أو كود الـ Subdomain في خانة الملاحظات أثناء التحويل'
+  instapayUsername: process.env.SAAS_INSTAPAY_USERNAME || 'davidovic',
+  instapayUrl: 'https://ipn.eg/S/davidovic/instapay/3BW08C',
+  instapayPhone: process.env.SAAS_INSTAPAY_PHONE || 'https://ipn.eg/S/davidovic/instapay/3BW08C',
+  bankName: 'إنستاباي مصر (InstaPay IPN)',
+  accountName: 'David / منصة موجود Moujood SaaS',
+  notes: 'يمكنك التحويل بنقرة واحدة عبر الرابط المباشر، أو التحويل لمعرف davidovic وكتابة اسم شركتك في الملاحظات'
 };
 
 /**

@@ -585,5 +585,164 @@ export const api = {
       body: JSON.stringify({ reason })
     });
     return res.json();
+  },
+
+  // 1-Click Sandbox Login
+  async sandboxLogin() {
+    const res = await fetch(`${BASE_URL}/saas/sandbox-login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    return res.json();
+  },
+
+  // Advances & Bonuses
+  async getAdvances(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    const res = await fetch(`${BASE_URL}/enterprise/payroll/advances?${query}`, { headers: getAuthHeaders() });
+    return res.json();
+  },
+
+  async requestAdvance(data) {
+    const res = await fetch(`${BASE_URL}/enterprise/payroll/advances/request`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data)
+    });
+    return res.json();
+  },
+
+  async approveAdvance(id) {
+    const res = await fetch(`${BASE_URL}/enterprise/payroll/advances/${id}/approve`, {
+      method: 'POST',
+      headers: getAuthHeaders()
+    });
+    return res.json();
+  },
+
+  async grantBonus(data) {
+    const res = await fetch(`${BASE_URL}/enterprise/payroll/bonuses/grant`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data)
+    });
+    return res.json();
+  },
+
+  // Digital Payslips & Overtime Radar
+  async getPayslips(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    const res = await fetch(`${BASE_URL}/enterprise/payroll/payroll/payslips?${query}`, { headers: getAuthHeaders() });
+    return res.json();
+  },
+
+  async generatePayroll(data) {
+    const res = await fetch(`${BASE_URL}/enterprise/payroll/payroll/generate`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data)
+    });
+    return res.json();
+  },
+
+  async getOvertimeRadar() {
+    const res = await fetch(`${BASE_URL}/enterprise/payroll/payroll/overtime-radar`, { headers: getAuthHeaders() });
+    return res.json();
+  },
+
+  // Field Visits
+  async recordFieldCheckIn(data) {
+    const res = await fetch(`${BASE_URL}/enterprise/shifts/field/checkin`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data)
+    });
+    return res.json();
+  },
+
+  async recordFieldCheckOut(data) {
+    const res = await fetch(`${BASE_URL}/enterprise/shifts/field/checkout`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data)
+    });
+    return res.json();
+  },
+
+  async getFieldVisits(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    const res = await fetch(`${BASE_URL}/enterprise/shifts/field/visits?${query}`, { headers: getAuthHeaders() });
+    return res.json();
+  },
+
+  // Shifts & Visual Roster
+  async getShifts(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    const res = await fetch(`${BASE_URL}/enterprise/shifts/shifts?${query}`, { headers: getAuthHeaders() });
+    return res.json();
+  },
+
+  async createShift(data) {
+    const res = await fetch(`${BASE_URL}/enterprise/shifts/shifts/create`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data)
+    });
+    return res.json();
+  },
+
+  async autoScheduleShifts(data) {
+    const res = await fetch(`${BASE_URL}/enterprise/shifts/shifts/auto-schedule`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data)
+    });
+    return res.json();
+  },
+
+  // Mini HR Vault
+  async getHRVault(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    const res = await fetch(`${BASE_URL}/enterprise/ops/hr-vault?${query}`, { headers: getAuthHeaders() });
+    return res.json();
+  },
+
+  async addHRVaultDoc(data) {
+    const res = await fetch(`${BASE_URL}/enterprise/ops/hr-vault/add`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data)
+    });
+    return res.json();
+  },
+
+  // 1-Tap Pulse & Analytics
+  async submitPulse(data) {
+    const res = await fetch(`${BASE_URL}/enterprise/ops/pulse/submit`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data)
+    });
+    return res.json();
+  },
+
+  async getPulseAnalytics() {
+    const res = await fetch(`${BASE_URL}/enterprise/ops/pulse/analytics`, { headers: getAuthHeaders() });
+    return res.json();
+  },
+
+  // AI Radars & Assistant
+  async getAttritionRadar() {
+    const res = await fetch(`${BASE_URL}/saas/ai/attrition-radar`, { headers: getAuthHeaders() });
+    return res.json();
+  },
+
+  async askAIHRAssistant(query) {
+    const res = await fetch(`${BASE_URL}/saas/ai/hr-chat`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ query })
+    });
+    return res.json();
   }
 };

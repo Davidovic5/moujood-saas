@@ -30,7 +30,9 @@ import {
   Fingerprint,
   Bell,
   Lock,
-  Sparkles
+  Sparkles,
+  DollarSign,
+  Navigation
 } from 'lucide-react';
 import { api } from './api';
 import { companyConfig } from './config/company.config';
@@ -41,6 +43,9 @@ import { LeavesPermissionsTab } from './components/LeavesPermissionsTab';
 import { RolesPermissionsTab } from './components/RolesPermissionsTab';
 import { OfficeSettingsTab } from './components/OfficeSettingsTab';
 import { MonthlyReportTab } from './components/MonthlyReportTab';
+import EnterprisePayrollTab from './components/EnterprisePayrollTab';
+import EnterpriseFieldVisitsTab from './components/EnterpriseFieldVisitsTab';
+import EnterpriseHRVaultTab from './components/EnterpriseHRVaultTab';
 import { SaasLandingPage } from './components/SaasLandingPage';
 import { SaasGodModeDashboard } from './components/SaasGodModeDashboard';
 import { CompanyRegistrationModal } from './components/CompanyRegistrationModal';
@@ -741,6 +746,24 @@ export default function App() {
       enabled: Boolean(isSuperAdmin || permissions.view_reports !== false)
     },
     {
+      id: 'payroll',
+      label: 'الرواتب والسلف',
+      icon: DollarSign,
+      enabled: true
+    },
+    {
+      id: 'field_visits',
+      label: 'الميداني والزيارات',
+      icon: Navigation,
+      enabled: true
+    },
+    {
+      id: 'hr_vault',
+      label: 'خزنة HR',
+      icon: Sparkles,
+      enabled: Boolean(isSuperAdmin || permissions.manage_employees || permissions.manage_titles_permissions)
+    },
+    {
       id: 'roles',
       label: 'الصلاحيات',
       icon: Shield,
@@ -784,6 +807,16 @@ export default function App() {
           }}
           onOpenGodMode={() => setShowGodMode(true)}
           onGoToTenantLogin={() => setIsExplicitAppView(true)}
+          onSandboxLogin={(data) => {
+            if (data.token) localStorage.setItem('token', data.token);
+            if (data.user) {
+              setCurrentUser(data.user);
+              localStorage.setItem('office_auth_user', JSON.stringify(data.user));
+            }
+            if (data.tenant?.slug) setTenantSlug(data.tenant.slug);
+            setIsExplicitAppView(true);
+            loadInitialData(true);
+          }}
         />
         <CompanyRegistrationModal
           isOpen={showRegisterModal}
@@ -855,6 +888,12 @@ export default function App() {
         );
       case 'reports':
         return <MonthlyReportTab currentUser={liveUser} />;
+      case 'payroll':
+        return <EnterprisePayrollTab currentUser={liveUser} />;
+      case 'field_visits':
+        return <EnterpriseFieldVisitsTab currentUser={liveUser} />;
+      case 'hr_vault':
+        return <EnterpriseHRVaultTab currentUser={liveUser} />;
       case 'roles':
         return (
           <RolesPermissionsTab 

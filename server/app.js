@@ -4,6 +4,9 @@ const path = require('path');
 const fs = require('fs');
 const routes = require('./routes');
 const saasRoutes = require('./routes/saasRoutes');
+const enterprisePayrollRoutes = require('./routes/enterprisePayrollRoutes');
+const enterpriseShiftsFieldRoutes = require('./routes/enterpriseShiftsFieldRoutes');
+const enterpriseOperationsRoutes = require('./routes/enterpriseOperationsRoutes');
 const { resolveTenant, checkSubscription } = require('./middleware/tenantSubscription');
 const { db } = require('./db');
 
@@ -34,6 +37,11 @@ app.use('/api', checkSubscription);
 
 // 4. Core Attendance Application Routes
 app.use('/api', routes);
+
+// 5. Enterprise Workforce, Payroll & Field Operations Routes
+app.use('/api/enterprise/payroll', enterprisePayrollRoutes);
+app.use('/api/enterprise/shifts', enterpriseShiftsFieldRoutes);
+app.use('/api/enterprise/ops', enterpriseOperationsRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

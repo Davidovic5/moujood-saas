@@ -302,6 +302,173 @@ const SubscriptionPaymentSchema = new mongoose.Schema({
 });
 SubscriptionPaymentSchema.index({ tenantId: 1, createdAt: -1 });
 
+// 12. Advances & Bonuses Schema (السلف والمكافآت)
+const AdvanceBonusSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  tenantId: { type: String, required: true, index: true },
+  employeeId: { type: String, required: true, index: true },
+  employeeName: { type: String, default: '' },
+  type: { type: String, enum: ['advance', 'bonus'], required: true },
+  amount: { type: Number, required: true },
+  reason: { type: String, default: '' },
+  splitMonths: { type: Number, enum: [1, 2], default: 1 },
+  remainingAmount: { type: Number, default: 0 },
+  deductionsSchedule: [{
+    month: { type: String }, // 'YYYY-MM'
+    amount: { type: Number },
+    isDeducted: { type: Boolean, default: false }
+  }],
+  status: { type: String, enum: ['pending', 'approved', 'rejected', 'completed'], default: 'pending', index: true },
+  approvedBy: { type: String, default: '' },
+  rejectionReason: { type: String, default: '' },
+  createdAt: { type: Date, default: Date.now }
+});
+AdvanceBonusSchema.index({ tenantId: 1, employeeId: 1, status: 1 });
+
+// 13. Digital Payslip Schema (قسائم الرواتب الرقمية)
+const PayslipSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  tenantId: { type: String, required: true, index: true },
+  employeeId: { type: String, required: true, index: true },
+  employeeName: { type: String, default: '' },
+  month: { type: String, required: true }, // 'YYYY-MM'
+  basicSalary: { type: Number, default: 0 },
+  overtimeHours: { type: Number, default: 0 },
+  overtimeRate: { type: Number, default: 1.35 },
+  overtimePay: { type: Number, default: 0 },
+  bonusesTotal: { type: Number, default: 0 },
+  grossEarnings: { type: Number, default: 0 },
+  lateDeductions: { type: Number, default: 0 },
+  leaveDeductions: { type: Number, default: 0 },
+  advanceDeductions: { type: Number, default: 0 },
+  otherDeductions: { type: Number, default: 0 },
+  netSalary: { type: Number, default: 0 },
+  status: { type: String, enum: ['draft', 'published'], default: 'published' },
+  publishedAt: { type: Date, default: Date.now }
+});
+PayslipSchema.index({ tenantId: 1, employeeId: 1, month: 1 }, { unique: true });
+
+// 14. Multi-Stop Field Visits & Mileage (زيارات العملاء والمواقع وبدل البنزين)
+const FieldVisitSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  tenantId: { type: String, required: true, index: true },
+  employeeId: { type: String, required: true, index: true },
+  employeeName: { type: String, default: '' },
+  clientName: { type: String, required: true },
+  locationName: { type: String, default: '' },
+  latitude: { type: Number, default: 0 },
+  longitude: { type: Number, default: 0 },
+  checkInTime: { type: Date, default: Date.now },
+  checkOutTime: { type: Date, default: null },
+  durationMinutes: { type: Number, default: 0 },
+  notes: { type: String, default: '' },
+  photoUrl: { type: String, default: '' },
+  mileageKm: { type: Number, default: 0 },
+  fuelAllowance: { type: Number, default: 0 },
+  expenses: [{
+    type: { type: String, default: 'transport' },
+    amount: { type: Number, default: 0 },
+    notes: { type: String, default: '' },
+    receiptUrl: { type: String, default: '' }
+  }],
+  status: { type: String, enum: ['active', 'completed'], default: 'active' }
+});
+FieldVisitSchema.index({ tenantId: 1, employeeId: 1, checkInTime: -1 });
+
+// 15. Shift Schedules & Visual Roster (جدول الشفتات والمناوبات)
+const ShiftScheduleSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  tenantId: { type: String, required: true, index: true },
+  branchId: { type: String, default: '' },
+  employeeId: { type: String, required: true, index: true },
+  employeeName: { type: String, default: '' },
+  date: { type: String, required: true }, // 'YYYY-MM-DD'
+  startTime: { type: String, required: true }, // 'HH:mm'
+  endTime: { type: String, required: true }, // 'HH:mm'
+  shiftType: { type: String, enum: ['regular', 'overnight', 'split', 'on_call'], default: 'regular' },
+  splitSecondStart: { type: String, default: '' },
+  splitSecondEnd: { type: String, default: '' },
+  isBiddingOpen: { type: Boolean, default: false },
+  biddingMultiplier: { type: Number, default: 1.25 },
+  status: { type: String, enum: ['scheduled', 'in_progress', 'completed', 'swapped'], default: 'scheduled' }
+});
+ShiftScheduleSchema.index({ tenantId: 1, date: 1, employeeId: 1 });
+
+// 16. HR Vault Schema (خزنة الموارد البشرية - انتهاء الإقامات والعقود وفترات الاختبار)
+const HRVaultSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  tenantId: { type: String, required: true, index: true },
+  employeeId: { type: String, required: true, index: true },
+  employeeName: { type: String, default: '' },
+  docType: { 
+    type: String, 
+    enum: ['probation_end', 'contract_renewal', 'national_id', 'residency', 'passport', 'medical'], 
+    required: true 
+  },
+  title: { type: String, required: true },
+  expiryDate: { type: Date, required: true },
+  reminderDaysBefore: { type: Number, default: 30 },
+  notes: { type: String, default: '' },
+  fileUrl: { type: String, default: '' },
+  isResolved: { type: Boolean, default: false }
+});
+HRVaultSchema.index({ tenantId: 1, expiryDate: 1 });
+
+// 17. 1-Tap Check-out Pulse & Weekly Mood (نبض الفريق ومؤشر المزاج)
+const DailyPulseSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  tenantId: { type: String, required: true, index: true },
+  branchId: { type: String, default: '' },
+  date: { type: String, required: true }, // 'YYYY-MM-DD'
+  mood: { type: String, enum: ['happy', 'neutral', 'stressed'], required: true },
+  comment: { type: String, default: '' },
+  createdAt: { type: Date, default: Date.now }
+});
+DailyPulseSchema.index({ tenantId: 1, date: 1 });
+
+// 18. Desk & Meeting Room Booking (حجز المكاتب وقاعات الاجتماعات)
+const DeskBookingSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  tenantId: { type: String, required: true, index: true },
+  employeeId: { type: String, required: true },
+  employeeName: { type: String, default: '' },
+  branchId: { type: String, default: '' },
+  resourceType: { type: String, enum: ['desk', 'meeting_room'], default: 'desk' },
+  resourceName: { type: String, required: true },
+  date: { type: String, required: true },
+  timeSlot: { type: String, default: 'full_day' },
+  status: { type: String, enum: ['confirmed', 'cancelled'], default: 'confirmed' }
+});
+DeskBookingSchema.index({ tenantId: 1, date: 1, resourceName: 1 });
+
+// 19. Company Policy & Emergency Weather (اللوائح المخصصة وقوانين العمل وزر الطوارئ)
+const CompanyPolicySchema = new mongoose.Schema({
+  tenantId: { type: String, required: true, unique: true, index: true },
+  gracePeriodMinutes: { type: Number, default: 15 },
+  overtimeMultiplierDay: { type: Number, default: 1.35 },
+  overtimeMultiplierNight: { type: Number, default: 1.70 },
+  overtimeMultiplierHoliday: { type: Number, default: 2.00 },
+  deductionCapPercent: { type: Number, default: 25 },
+  monthlyOvertimeBudget: { type: Number, default: 50000 },
+  hybridWeeklyDays: { type: Number, default: 3 },
+  emergencyWeatherActive: { type: Boolean, default: false },
+  emergencyWeatherNotes: { type: String, default: '' },
+  updatedAt: { type: Date, default: Date.now }
+});
+
+// 20. Punctuality Rewards & Gamification (متجر نقاط الالتزام)
+const PunctualityRewardSchema = new mongoose.Schema({
+  tenantId: { type: String, required: true, index: true },
+  employeeId: { type: String, required: true, unique: true },
+  points: { type: Number, default: 0 },
+  badges: [{ type: String }],
+  history: [{
+    action: { type: String },
+    points: { type: Number },
+    date: { type: Date, default: Date.now }
+  }]
+});
+
 const Tenant = mongoose.models.Tenant || mongoose.model('Tenant', TenantSchema);
 const Branch = mongoose.models.Branch || mongoose.model('Branch', BranchSchema);
 const Title = mongoose.models.Title || mongoose.model('Title', TitleSchema);
@@ -314,6 +481,16 @@ const WebAuthnChallenge = mongoose.models.WebAuthnChallenge || mongoose.model('W
 const InAppNotification = mongoose.models.InAppNotification || mongoose.model('InAppNotification', NotificationSchema);
 const AuditLog = mongoose.models.AuditLog || mongoose.model('AuditLog', AuditLogSchema);
 const SubscriptionPayment = mongoose.models.SubscriptionPayment || mongoose.model('SubscriptionPayment', SubscriptionPaymentSchema);
+
+const AdvanceBonus = mongoose.models.AdvanceBonus || mongoose.model('AdvanceBonus', AdvanceBonusSchema);
+const Payslip = mongoose.models.Payslip || mongoose.model('Payslip', PayslipSchema);
+const FieldVisit = mongoose.models.FieldVisit || mongoose.model('FieldVisit', FieldVisitSchema);
+const ShiftSchedule = mongoose.models.ShiftSchedule || mongoose.model('ShiftSchedule', ShiftScheduleSchema);
+const HRVault = mongoose.models.HRVault || mongoose.model('HRVault', HRVaultSchema);
+const DailyPulse = mongoose.models.DailyPulse || mongoose.model('DailyPulse', DailyPulseSchema);
+const DeskBooking = mongoose.models.DeskBooking || mongoose.model('DeskBooking', DeskBookingSchema);
+const CompanyPolicy = mongoose.models.CompanyPolicy || mongoose.model('CompanyPolicy', CompanyPolicySchema);
+const PunctualityReward = mongoose.models.PunctualityReward || mongoose.model('PunctualityReward', PunctualityRewardSchema);
 
 module.exports = {
   PLANS,
@@ -328,5 +505,14 @@ module.exports = {
   WebAuthnChallenge,
   InAppNotification,
   AuditLog,
-  SubscriptionPayment
+  SubscriptionPayment,
+  AdvanceBonus,
+  Payslip,
+  FieldVisit,
+  ShiftSchedule,
+  HRVault,
+  DailyPulse,
+  DeskBooking,
+  CompanyPolicy,
+  PunctualityReward
 };
