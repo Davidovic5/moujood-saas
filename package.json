@@ -1,7 +1,7 @@
 {
-  "name": "office-attendance-app",
+  "name": "moujood-saas",
   "version": "1.0.0",
-  "description": "Smart GPS Office Attendance and Leave Management System for iOS, Android, and Web",
+  "description": "Moujood (موجود) - Smart GPS Attendance & Workforce SaaS Platform",
   "main": "server/index.js",
   "engines": {
     "node": ">=18.0.0"

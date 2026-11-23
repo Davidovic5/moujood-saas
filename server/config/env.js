@@ -51,7 +51,7 @@ if (!JWT_SECRET) {
   throw new Error(errMsg);
 }
 
-const PORT = parseInt(process.env.PORT || '3001', 10);
+const PORT = parseInt(process.env.PORT || '4000', 10);
 const DEFAULT_TENANT_ID = process.env.DEFAULT_TENANT_ID || 'default';
 
 module.exports = {

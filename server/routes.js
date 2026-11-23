@@ -29,6 +29,7 @@ function getExpectedOrigins(req) {
     `${proto}://${host}`,
     `https://${host}`,
     `http://${host}`,
+    'http://localhost:4000',
     'http://localhost:3001',
     'http://localhost:5173',
     'http://localhost:3000'
