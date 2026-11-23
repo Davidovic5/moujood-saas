@@ -1,0 +1,613 @@
+import React, { useState, useEffect } from 'react';
+import { 
+  Calendar, 
+  Clock, 
+  Users, 
+  FileText, 
+  ChevronRight, 
+  ChevronLeft, 
+  Building2, 
+  Search, 
+  Printer, 
+  Download, 
+  CheckCircle2, 
+  AlertCircle, 
+  Plane, 
+  Stethoscope, 
+  Palmtree, 
+  Clock3, 
+  Briefcase, 
+  Sparkles,
+  ChevronDown,
+  ChevronUp
+} from 'lucide-react';
+import { api } from '../api';
+import { getUserAllowedBranches } from '../utils/userScope';
+import { formatCairoTime } from '../utils/dateHelpers';
+import { companyConfig } from '../config/company.config';
+
+const DEFAULT_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23F5B800'><path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z'/></svg>";
+
+const MONTH_NAMES = [
+  'يناير', 'فبراير', 'مارس', 'إبريل', 'مايو', 'يونيو',
+  'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'
+];
+
+export function MonthlyReportTab({ currentUser }) {
+  const currentDate = new Date();
+  const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth() + 1); // 1-12
+  const [selectedBranchId, setSelectedBranchId] = useState('all');
+  const [branches, setBranches] = useState([]);
+  const [reportData, setReportData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [expandedEmployeeId, setExpandedEmployeeId] = useState(null);
+  const [viewMode, setViewMode] = useState('summary'); // 'summary' | 'attendance_log' | 'leaves_log'
+
+  const allowedBranches = getUserAllowedBranches(currentUser, branches);
+  const isExecutive = currentUser?.titleCode === 'executive_director' || Boolean(currentUser?.isSuperAdmin);
+  const isAreaMgr = currentUser?.titleCode === 'area_manager';
+
+  // Load branches
+  useEffect(() => {
+    api.getBranches().then(res => {
+      if (res.success && res.branches) {
+        setBranches(res.branches);
+        const allowed = getUserAllowedBranches(currentUser, res.branches);
+        if (allowed.length === 1) {
+          setSelectedBranchId(allowed[0].id);
+        } else if (currentUser?.titleCode === 'area_manager') {
+          setSelectedBranchId('all_sector');
+        } else {
+          setSelectedBranchId('all');
+        }
+      }
+    }).catch(console.error);
+  }, [currentUser]);
+
+  // Fetch monthly report
+  const fetchReport = async () => {
+    setLoading(true);
+    try {
+      let branchParam = selectedBranchId;
+      if (selectedBranchId === 'all_sector' && isAreaMgr) {
+        branchParam = allowedBranches.map(b => b.id).join(',');
+      } else if (!isExecutive && allowedBranches.length === 1) {
+        branchParam = allowedBranches[0].id;
+      }
+      const res = await api.getMonthlyReport(selectedYear, selectedMonth, branchParam);
+      if (res.success) {
+        setReportData(res.report);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchReport();
+  }, [selectedYear, selectedMonth, selectedBranchId]);
+
+  // Navigate months
+  const handlePrevMonth = () => {
+    if (selectedMonth === 1) {
+      setSelectedMonth(12);
+      setSelectedYear(prev => prev - 1);
+    } else {
+      setSelectedMonth(prev => prev - 1);
+    }
+  };
+
+  const handleNextMonth = () => {
+    if (selectedMonth === 12) {
+      setSelectedMonth(1);
+      setSelectedYear(prev => prev + 1);
+    } else {
+      setSelectedMonth(prev => prev + 1);
+    }
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const handleExportExcel = () => {
+    // Generate clean UTF-8 CSV with BOM (\uFEFF)
+    let csv = '\uFEFF';
+    
+    // Header section
+    csv += `تقرير الحضور الشهري - ${companyConfig.companyName}\r\n`;
+    csv += `الفترة: ${MONTH_NAMES[selectedMonth - 1]} ${selectedYear}\r\n\r\n`;
+    
+    // Section 1: Monthly Summary
+    csv += 'ملخص حضور الموظفين خلال الشهر\r\n';
+    csv += 'اسم الموظف,كود SAP,المسمى الوظيفي,الفرع / المقر,الهاتف,أيام الحضور,إجمالي الساعات,عدد الإجازات,ساعات الأذونات\r\n';
+    
+    filteredSummaries.forEach(item => {
+      const emp = item.employee || {};
+      const row = [
+        `"${(emp.name || '').replace(/"/g, '""')}"`,
+        `"${(emp.sapNumber || '').replace(/"/g, '""')}"`,
+        `"${(emp.jobTitle || '').replace(/"/g, '""')}"`,
+        `"${(emp.branchName || '').replace(/"/g, '""')}"`,
+        `"${(emp.phone || '').replace(/"/g, '""')}"`,
+        item.presentDays || 0,
+        item.totalHours || 0,
+        item.leavesCount || 0,
+        item.permissionsHours || 0
+      ];
+      csv += row.join(',') + '\r\n';
+    });
+
+    csv += '\r\n';
+
+    // Section 2: Detailed Daily Attendance Log
+    if (attendance && attendance.length > 0) {
+      csv += 'سجل الحضور والانصراف اليومي المفصل\r\n';
+      csv += 'التاريخ,اسم الموظف,كود SAP,المسمى الوظيفي,الفرع,وقت الحضور,وقت الانصراف,الساعات الفعلية,الحالة,ملاحظات\r\n';
+      attendance.forEach(rec => {
+        const inTime = rec.checkInTime ? formatCairoTime(rec.checkInTime) : '';
+        const outTime = rec.checkOutTime ? formatCairoTime(rec.checkOutTime) : 'في العمل';
+        const durationHrs = rec.durationMinutes ? (rec.durationMinutes / 60).toFixed(1) : '0';
+        const status = rec.completed8Hours ? 'مكتمل ساعات العمل' : (rec.checkOutTime ? 'انصراف مبكر' : 'حاضر حالياً');
+        const notes = (rec.checkOutNotes || rec.earlyReason || '').replace(/"/g, '""');
+
+        const row = [
+          `"${rec.date || ''}"`,
+          `"${(rec.employeeName || '').replace(/"/g, '""')}"`,
+          `"${(rec.sapNumber || '').replace(/"/g, '""')}"`,
+          `"${(rec.jobTitle || '').replace(/"/g, '""')}"`,
+          `"${(rec.branchName || '').replace(/"/g, '""')}"`,
+          `"${inTime}"`,
+          `"${outTime}"`,
+          durationHrs,
+          `"${status}"`,
+          `"${notes}"`
+        ];
+        csv += row.join(',') + '\r\n';
+      });
+    }
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `كشف_حضور_${selectedYear}_${String(selectedMonth).padStart(2, '0')}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const { employeeSummaries = [], attendance = [], requests = [], monthLabel = '' } = reportData || {};
+
+  const filteredSummaries = employeeSummaries.filter(item => 
+    !searchQuery ||
+    (item.employee?.name && item.employee.name.includes(searchQuery)) ||
+    (item.employee?.jobTitle && item.employee.jobTitle.includes(searchQuery)) ||
+    (item.employee?.branchName && item.employee.branchName.includes(searchQuery))
+  );
+
+  return (
+    <div className="space-y-4 pb-8 text-right font-['Cairo',sans-serif]">
+      {/* Header and Controls */}
+      <div className="bg-zinc-900 p-4 rounded-3xl border border-zinc-800 shadow-xl space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+          <div>
+            <h2 className="text-base font-black text-amber-400 flex items-center gap-1.5">
+              <Calendar className="w-5 h-5 text-amber-400" />
+              <span>كشف وتقارير الحضور والإجازات الشهرية</span>
+            </h2>
+            <p className="text-xs text-zinc-400 mt-0.5">
+              متابعة مواعيد حضور وانصراف الموظفين وسجل الإجازات والأذونات على مدار الشهر
+            </p>
+          </div>
+
+          {/* Month Navigator */}
+          <div className="flex items-center gap-1.5 self-start sm:self-auto bg-zinc-950 p-1.5 rounded-2xl border border-zinc-800">
+            <button
+              type="button"
+              onClick={handlePrevMonth}
+              className="p-1.5 rounded-xl hover:bg-zinc-800 text-zinc-300 transition-colors"
+              title="الشهر السابق"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+            <span className="text-xs font-black text-amber-400 px-2 whitespace-nowrap">
+              {MONTH_NAMES[selectedMonth - 1]} {selectedYear}
+            </span>
+            <button
+              type="button"
+              onClick={handleNextMonth}
+              className="p-1.5 rounded-xl hover:bg-zinc-800 text-zinc-300 transition-colors"
+              title="الشهر التالي"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Filter and Print Toolbar */}
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-zinc-800/80">
+          <div className="flex items-center gap-2 flex-1 min-w-[200px]">
+            <Building2 className="w-4 h-4 text-amber-400 shrink-0" />
+            {allowedBranches.length > 1 ? (
+              <select
+                value={selectedBranchId}
+                onChange={e => setSelectedBranchId(e.target.value)}
+                className="w-full p-2 text-xs font-bold rounded-xl bg-zinc-950 border border-zinc-800 text-amber-400 focus:outline-none focus:border-amber-500"
+              >
+                {isExecutive && (
+                  <option value="all">🌐 جميع الفروع والقطاعات (إجمالي فروع {companyConfig.companyName})</option>
+                )}
+                {isAreaMgr && (
+                  <option value="all_sector">🏢 كافة فروع القطاع ({currentUser?.sectorName || 'القطاع'})</option>
+                )}
+                {allowedBranches.map(b => (
+                  <option key={b.id} value={b.id}>
+                    فرع {b.name} ({b.city})
+                  </option>
+                ))}
+              </select>
+            ) : allowedBranches.length === 1 ? (
+              <div className="text-xs font-bold text-amber-400 bg-zinc-950 px-3 py-2 rounded-xl border border-zinc-800 flex-1">
+                فرع {allowedBranches[0].name} ({allowedBranches[0].city})
+              </div>
+            ) : null}
+          </div>
+
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <button
+              type="button"
+              onClick={handleExportExcel}
+              className="py-2 px-3 bg-zinc-950 hover:bg-zinc-800 text-zinc-300 border border-zinc-800 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 shadow-sm"
+              title="تصدير ملف كشف الحضور بصيغة Excel CSV مع دعم كامل للغة العربية"
+            >
+              <Download className="w-3.5 h-3.5 text-emerald-400" />
+              <span>تصدير Excel</span>
+            </button>
+            <button
+              type="button"
+              onClick={handlePrint}
+              className="py-2 px-3 bg-zinc-950 hover:bg-zinc-800 text-zinc-300 border border-zinc-800 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5"
+            >
+              <Printer className="w-3.5 h-3.5 text-amber-400" />
+              <span>طباعة الكشف</span>
+            </button>
+            <button
+              type="button"
+              onClick={fetchReport}
+              className="py-2 px-3 bg-amber-500 hover:bg-amber-400 text-black rounded-xl text-xs font-black transition-colors flex items-center gap-1.5"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>تحديث</span>
+            </button>
+          </div>
+        </div>
+
+        {/* View Switchers */}
+        <div className="flex p-1 bg-zinc-950 rounded-2xl border border-zinc-800">
+          <button
+            type="button"
+            onClick={() => setViewMode('summary')}
+            className={`flex-1 py-1.5 text-xs font-black rounded-xl transition-all ${
+              viewMode === 'summary'
+                ? 'bg-amber-500 text-black shadow-xs font-black'
+                : 'text-zinc-400 hover:text-white'
+            }`}
+          >
+            📊 كشف ملخص الموظفين ({filteredSummaries.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode('attendance_log')}
+            className={`flex-1 py-1.5 text-xs font-black rounded-xl transition-all ${
+              viewMode === 'attendance_log'
+                ? 'bg-amber-500 text-black shadow-xs font-black'
+                : 'text-zinc-400 hover:text-white'
+            }`}
+          >
+            ⏱️ سجل الحضور اليومي ({attendance.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode('leaves_log')}
+            className={`flex-1 py-1.5 text-xs font-black rounded-xl transition-all ${
+              viewMode === 'leaves_log'
+                ? 'bg-amber-500 text-black shadow-xs font-black'
+                : 'text-zinc-400 hover:text-white'
+            }`}
+          >
+            🌴 سجل الإجازات والأذونات ({requests.length})
+          </button>
+        </div>
+      </div>
+
+      {/* Search Input */}
+      <div className="relative">
+        <Search className="w-3.5 h-3.5 text-zinc-500 absolute right-3.5 top-1/2 -translate-y-1/2" />
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          placeholder="بحث بالاسم أو التايتل أو الفرع..."
+          className="w-full pr-9 pl-3 py-2 text-xs rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-amber-500 font-bold"
+        />
+      </div>
+
+      {/* Loading */}
+      {loading && (
+        <div className="bg-zinc-900 p-8 rounded-3xl border border-zinc-800 text-center text-zinc-400">
+          <div className="w-8 h-8 border-3 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+          <span className="text-xs font-bold">جاري تجميع كشف الشهر...</span>
+        </div>
+      )}
+
+      {/* ================= 1. SUMMARY VIEW ================= */}
+      {!loading && viewMode === 'summary' && (
+        <div className="space-y-3">
+          {filteredSummaries.length === 0 ? (
+            <div className="bg-zinc-900 p-8 rounded-3xl border border-zinc-800 text-center text-zinc-500">
+              <Users className="w-10 h-10 mx-auto mb-2 text-zinc-700" />
+              <p className="text-xs font-bold">لا توجد بيانات موظفين مسجلة لهذا الشهر.</p>
+            </div>
+          ) : (
+            filteredSummaries.map(item => {
+              const isExpanded = expandedEmployeeId === item.employee.id;
+
+              return (
+                <div 
+                  key={item.employee.id} 
+                  className="bg-zinc-900 rounded-3xl border border-zinc-800 shadow-md overflow-hidden transition-all"
+                >
+                  {/* Card Header (Employee Summary Row) */}
+                  <div 
+                    onClick={() => setExpandedEmployeeId(isExpanded ? null : item.employee.id)}
+                    className="p-4 cursor-pointer hover:bg-zinc-850 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <img 
+                        src={item.employee.avatar} 
+                        alt={item.employee.name} 
+                        className="w-11 h-11 rounded-2xl object-cover border-2 border-amber-500/40 shrink-0" 
+                      />
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <h3 className="font-black text-sm text-zinc-100 truncate">{item.employee.name}</h3>
+                          <span dir="ltr" className="text-[10px] text-zinc-400 font-normal">({item.employee.jobTitle})</span>
+                        </div>
+                        <span className="text-[11px] text-amber-400 block mt-0.5 truncate">
+                          فرع {item.employee.branchName} • <span dir="ltr">{item.employee.phone}</span>
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Quick Stats Badges */}
+                    <div className="flex flex-wrap items-center gap-2 shrink-0">
+                      <div className="text-left bg-zinc-950 px-3 py-1.5 rounded-xl border border-zinc-800 whitespace-nowrap min-w-fit">
+                        <span className="text-[9px] text-zinc-400 block font-semibold">حضور الشهر</span>
+                        <span className="text-xs font-black text-emerald-400">{item.presentDays} يوم</span>
+                      </div>
+
+                      <div className="text-left bg-zinc-950 px-3 py-1.5 rounded-xl border border-zinc-800 whitespace-nowrap min-w-fit hidden sm:block">
+                        <span className="text-[9px] text-zinc-400 block font-semibold">إجمالي الساعات</span>
+                        <span className="text-xs font-black text-amber-400">{item.totalHours} س</span>
+                      </div>
+
+                      <div className="text-left bg-zinc-950 px-3 py-1.5 rounded-xl border border-zinc-800 whitespace-nowrap min-w-fit">
+                        <span className="text-[9px] text-zinc-400 block font-semibold">إجازات وأذونات</span>
+                        <span className="text-xs font-black text-amber-300">
+                          {item.leavesCount} إجازة / {item.permissionsHours}س
+                        </span>
+                      </div>
+
+                      <div className="text-zinc-400 p-1 mr-auto sm:mr-0">
+                        {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5 text-amber-400" />}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Expanded Calendar / Daily Matrix for this Employee */}
+                  {isExpanded && (
+                    <div className="bg-zinc-950 p-4 border-t border-zinc-800/80 space-y-3 animate-fade-in">
+                      <div className="flex items-center justify-between text-xs font-bold text-zinc-300 pb-2 border-b border-zinc-800">
+                        <span>تفاصيل أيام شهر {monthLabel} للموظف:</span>
+                        <span className="text-amber-400 font-mono">
+                          المجموع: {item.presentDays} يوم عمل ({item.totalHours} ساعة)
+                        </span>
+                      </div>
+
+                      {/* Daily Grid */}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-1.5">
+                        {item.dailyBreakdown.map(dayObj => {
+                          let badgeBg = 'bg-zinc-900 text-zinc-500 border-zinc-800';
+                          if (dayObj.status === 'present') badgeBg = 'bg-emerald-950/80 text-emerald-300 border-emerald-700/60 font-black';
+                          else if (dayObj.status === 'leave') badgeBg = 'bg-amber-950/80 text-amber-300 border-amber-600/60 font-bold';
+                          else if (dayObj.status === 'permission') badgeBg = 'bg-amber-500/10 text-amber-400 border-amber-500/30 font-bold';
+                          else if (dayObj.status === 'weekly_off') badgeBg = 'bg-zinc-900/90 text-zinc-400 border-zinc-800';
+                          else if (dayObj.status === 'future') badgeBg = 'bg-zinc-950 text-zinc-600 border-zinc-850';
+
+                          return (
+                            <div 
+                              key={dayObj.day}
+                              className={`p-2 rounded-xl border text-center transition-all ${badgeBg}`}
+                              title={dayObj.detail || dayObj.label}
+                            >
+                              <div className="text-[10px] opacity-75 font-mono">{dayObj.day} {MONTH_NAMES[selectedMonth - 1]}</div>
+                              <div className="text-xs font-black truncate mt-0.5">{dayObj.label}</div>
+                              {dayObj.detail && (
+                                <div className="text-[9px] opacity-70 truncate mt-0.5 font-mono">{dayObj.detail}</div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
+
+      {/* ================= 2. DETAILED ATTENDANCE LOG ================= */}
+      {!loading && viewMode === 'attendance_log' && (
+        <div className="space-y-2">
+          {attendance.length === 0 ? (
+            <div className="bg-zinc-900 p-8 rounded-3xl border border-zinc-800 text-center text-zinc-500">
+              <Clock className="w-10 h-10 mx-auto mb-2 text-zinc-700" />
+              <p className="text-xs font-bold">لا توجد سجلات حضور مسجلة لهذا الشهر حتى الآن.</p>
+            </div>
+          ) : (
+            attendance
+              .filter(rec => 
+                !searchQuery ||
+                (rec.employeeName || '').includes(searchQuery) ||
+                (rec.jobTitle || '').includes(searchQuery) ||
+                (rec.branchName || '').includes(searchQuery) ||
+                (rec.date || '').includes(searchQuery)
+              )
+              .map(rec => {
+                const durationHrs = rec.durationMinutes ? (rec.durationMinutes / 60).toFixed(1) : (rec.checkOutTime ? '8.0' : 'جاري');
+
+                return (
+                  <div 
+                    key={rec.id} 
+                    className="bg-zinc-900 p-3.5 rounded-2xl border border-zinc-800 shadow-md flex items-center justify-between gap-3 text-xs"
+                  >
+                    <div className="flex items-center gap-3">
+                      <img 
+                        src={rec.avatar || DEFAULT_AVATAR} 
+                        alt={rec.employeeName || 'موظف'} 
+                        className="w-10 h-10 rounded-xl object-cover border border-amber-500/40 shrink-0" 
+                      />
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-black text-sm text-zinc-100">{rec.employeeName || 'موظف'}</span>
+                          <span dir="ltr" className="text-[10px] text-zinc-400 font-normal">({rec.jobTitle || 'موظف'})</span>
+                        </div>
+                        <span className="text-[11px] text-amber-400 block mt-0.5 font-mono">
+                          📅 {rec.date} • فرع {rec.branchName || 'الرئيسي'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="text-left font-mono">
+                      <div className="text-zinc-200 font-bold">
+                        حضور: {formatCairoTime(rec.checkInTime)}
+                        {' ➔ '}
+                        انصراف: {rec.checkOutTime ? formatCairoTime(rec.checkOutTime) : 'في العمل'}
+                      </div>
+                      <div className="text-[11px] text-emerald-400 mt-0.5">
+                        إجمالي الوقت: {durationHrs} ساعة {rec.completed8Hours && '• مكتمل 8س ✅'}
+                      </div>
+                      {rec.earlyReason && (
+                        <div className="text-[10px] text-amber-400 mt-0.5">
+                          سبب الانصراف المبكر: {rec.earlyReason}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+          )}
+        </div>
+      )}
+
+      {/* ================= 3. DETAILED LEAVES & PERMISSIONS LOG ================= */}
+      {!loading && viewMode === 'leaves_log' && (
+        <div className="space-y-2">
+          {requests.length === 0 ? (
+            <div className="bg-zinc-900 p-8 rounded-3xl border border-zinc-800 text-center text-zinc-500">
+              <FileText className="w-10 h-10 mx-auto mb-2 text-zinc-700" />
+              <p className="text-xs font-bold">لا توجد إجازات أو أذونات معتمدة لهذا الشهر.</p>
+            </div>
+          ) : (
+            requests
+              .filter(req => 
+                !searchQuery ||
+                req.employeeName.includes(searchQuery) ||
+                req.jobTitle.includes(searchQuery) ||
+                req.branchName.includes(searchQuery) ||
+                (req.reason && req.reason.includes(searchQuery))
+              )
+              .map(req => {
+                const isLeave = req.type === 'leave';
+                const isEarlyCheckout = req.type === 'early_checkout';
+
+                return (
+                  <div 
+                    key={req.id} 
+                    className="bg-zinc-900 p-3.5 rounded-2xl border border-zinc-800 shadow-md flex items-center justify-between gap-3 text-xs"
+                  >
+                    <div className="flex items-center gap-3">
+                      <img 
+                        src={req.avatar} 
+                        alt={req.employeeName} 
+                        className="w-10 h-10 rounded-xl object-cover border border-amber-500/40 shrink-0" 
+                      />
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-black text-sm text-zinc-100">{req.employeeName}</span>
+                          <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold ${
+                            isEarlyCheckout
+                              ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                              : isLeave 
+                                ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30' 
+                                : 'bg-zinc-800 text-zinc-300 border border-zinc-700'
+                          }`}>
+                            {isEarlyCheckout
+                              ? 'انصراف طارئ 🚨'
+                              : isLeave 
+                                ? (req.leaveType === 'sick' 
+                                    ? 'إجازة مرضي 🏥' 
+                                    : (req.leaveType === 'work_mission' 
+                                        ? 'مأمورية عمل 🎯' 
+                                        : (req.leaveType === 'weekly_rest_compensation' 
+                                            ? 'بدل راحة أسبوعية 🔄' 
+                                            : (req.leaveType === 'holiday_compensation' 
+                                                ? 'بدل إجازة عيد 🎉' 
+                                                : (req.leaveType === 'casual' 
+                                                    ? 'إجازة عارضة ⚡' 
+                                                    : (req.leaveType === 'annual' 
+                                                        ? 'إجازة سنوية 🏖️' 
+                                                        : 'إجازة')))))) 
+                                : 'إذن ساعتين 🕒'}
+                          </span>
+                        </div>
+                        <span className="text-[11px] text-zinc-400 block mt-0.5">
+                          {req.jobTitle} • فرع {req.branchName}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="text-left max-w-[50%]">
+                      <span className="font-mono font-bold text-amber-400 block">
+                        {isLeave 
+                          ? `من ${req.startDate} إلى ${req.endDate}`
+                          : isEarlyCheckout
+                            ? `يوم ${req.date || req.requestedAt?.split('T')[0]}`
+                            : `يوم ${req.date} (${req.startTime} - ${req.endTime})`}
+                      </span>
+                      <p className="text-[11px] text-zinc-300 mt-0.5 truncate" title={req.reason}>
+                        السبب: {req.reason}
+                      </p>
+                      {req.reviewNote && (
+                        <span className="text-[10px] text-emerald-400 block mt-0.5">
+                          معتمد: {req.reviewNote}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

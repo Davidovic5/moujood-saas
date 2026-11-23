@@ -1,0 +1,2520 @@
+const mongoose = require('mongoose');
+const { Tenant, Branch, Title, Employee, AttendanceRecord, Request, OfficeSettings, PushSubscription, WebAuthnChallenge, InAppNotification, AuditLog } = require('./models');
+const { logAudit } = require('./utils/auditLogger');
+const { DEFAULT_TENANT_ID } = require('./config/env');
+
+// Configure VAPID for Web Push Notifications (Works even when app is closed on mobile)
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || "BKDfJ-gm-z4cJNeyTTBe3cD_bPcugExOm9yLKbZQZ68s0lQADHy-pGzkJ_Mbuf7IlZL0B5elp4MVu8Xy_3LXGSk";
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || "-CF2u_m7I2mFHqknnMkYRDkIE0gXvD69zW63PEA0tzM";
+const VAPID_SUBJECT = process.env.VAPID_SUBJECT || "mailto:admin@example.com";
+
+let webPush = null;
+try {
+  webPush = require('web-push');
+  webPush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+} catch (e) {
+  console.warn("VAPID setup warning:", e.message);
+}
+
+// Calculate GPS distance using Haversine formula
+function calculateDistanceMeters(lat1, lon1, lat2, lon2) {
+  const R = 6371e3;
+  const φ1 = (lat1 * Math.PI) / 180;
+  const φ2 = (lat2 * Math.PI) / 180;
+  const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+  const Δλ = ((lon2 - lon1) * Math.PI) / 180;
+
+  const a =
+    Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+    Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return Math.round(R * c);
+}
+
+const DAY_MAP = {
+  0: 'sunday',
+  1: 'monday',
+  2: 'tuesday',
+  3: 'wednesday',
+  4: 'thursday',
+  5: 'friday',
+  6: 'saturday'
+};
+
+function getCairoDateString(d = new Date()) {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Cairo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+}
+
+function getCairoHourMinute(d = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'Africa/Cairo', hour: 'numeric', minute: 'numeric', hour12: false }).formatToParts(d);
+  const hour = parseInt(parts.find(p => p.type === 'hour')?.value || '0', 10);
+  const minute = parseInt(parts.find(p => p.type === 'minute')?.value || '0', 10);
+  return { hour, minute };
+}
+
+const DEFAULT_SECTORS = [
+  {
+    id: 'sector_main',
+    name: 'القطاع الرئيسي',
+    branchIds: ['branch_main']
+  }
+];
+
+const DEFAULT_BRANCHES = [
+  {
+    id: 'branch_main',
+    code: 'main_branch',
+    name: 'الفرع الرئيسي',
+    city: 'القاهرة',
+    latitude: 30.0444,
+    longitude: 31.2357,
+    radiusMeters: 100,
+    sectorId: 'sector_main',
+    sectorName: 'القطاع الرئيسي',
+    isArchived: false
+  }
+];
+
+const DEFAULT_TITLES = [
+  {
+    id: "title_executive_director",
+    code: "executive_director",
+    name: "المدير التنفيذي (Executive Director)",
+    nameAr: "المدير التنفيذي",
+    nameEn: "Executive Director",
+    arabicTitle: "المدير التنفيذي",
+    englishTitle: "Executive Director",
+    description: "صلاحيات تنفيذية عليا وشاملة لإدارة النظام والفروع والموظفين والتقارير",
+    color: "amber",
+    order: 1,
+    level: 1,
+    isSystemAdmin: true,
+    permissions: {
+      check_in_out: true,
+      view_own_attendance: true,
+      view_office_presence: true,
+      request_leave: true,
+      request_permission: true,
+      approve_leaves_permissions: true,
+      approve_early_checkout: true,
+      manage_employees: true,
+      manage_titles_permissions: true,
+      manage_office_settings: true,
+      view_reports: true,
+      view_all_branches: true,
+      override_early_checkout: true,
+      edit_employee_details: true
+    }
+  },
+  {
+    id: "title_area_manager",
+    code: "area_manager",
+    name: "مدير قطاع / منطقة (Area Manager)",
+    nameAr: "مدير قطاع / منطقة",
+    nameEn: "Area Manager",
+    arabicTitle: "مدير قطاع / منطقة",
+    englishTitle: "Area Manager",
+    description: "متابعة وإشراف على فروع القطاع واعتماد الإجازات والأذونات والانصراف المبكر",
+    color: "yellow",
+    order: 2,
+    level: 2,
+    isSystemAdmin: false,
+    permissions: {
+      check_in_out: true,
+      view_own_attendance: true,
+      view_office_presence: true,
+      request_leave: true,
+      request_permission: true,
+      approve_leaves_permissions: true,
+      approve_early_checkout: true,
+      manage_employees: true,
+      manage_titles_permissions: false,
+      manage_office_settings: false,
+      view_reports: true,
+      view_all_branches: false,
+      override_early_checkout: true,
+      edit_employee_details: true
+    }
+  },
+  {
+    id: "title_branch_manager",
+    code: "branch_manager",
+    name: "مدير فرع / مشرف (Branch Manager)",
+    nameAr: "مدير فرع / مشرف",
+    nameEn: "Branch Manager",
+    arabicTitle: "مدير فرع / مشرف",
+    englishTitle: "Branch Manager",
+    description: "إدارة ومتابعة حضور وانصراف موظفي الفرع واعتماد الطلبات الداخلية",
+    color: "emerald",
+    order: 3,
+    level: 3,
+    isSystemAdmin: false,
+    permissions: {
+      check_in_out: true,
+      view_own_attendance: true,
+      view_office_presence: true,
+      request_leave: true,
+      request_permission: true,
+      approve_leaves_permissions: true,
+      approve_early_checkout: false,
+      manage_employees: true,
+      manage_titles_permissions: false,
+      manage_office_settings: false,
+      view_reports: true,
+      view_all_branches: false,
+      override_early_checkout: false,
+      edit_employee_details: false
+    }
+  },
+  {
+    id: "title_employee",
+    code: "employee",
+    name: "موظف (Employee)",
+    nameAr: "موظف",
+    nameEn: "Employee",
+    arabicTitle: "موظف",
+    englishTitle: "Employee",
+    description: "تسجيل الحضور والانصراف بالـ GPS وتقديم طلبات الإجازات والأذونات ومتابعة السجل الشخصي",
+    color: "zinc",
+    order: 4,
+    level: 4,
+    isSystemAdmin: false,
+    permissions: {
+      check_in_out: true,
+      view_own_attendance: true,
+      view_office_presence: true,
+      request_leave: true,
+      request_permission: true,
+      approve_leaves_permissions: false,
+      approve_early_checkout: false,
+      manage_employees: false,
+      manage_titles_permissions: false,
+      manage_office_settings: false,
+      view_reports: false,
+      view_all_branches: false,
+      override_early_checkout: false,
+      edit_employee_details: false
+    }
+  }
+];
+
+// Production-safe Serverless Mongoose connection caching (Peak Traffic Protection ~ 12:00 - 12:30 PM)
+if (!globalThis._mongooseConnectionCache) {
+  globalThis._mongooseConnectionCache = {
+    conn: null,
+    promise: null
+  };
+}
+const cache = globalThis._mongooseConnectionCache;
+let isSeeding = false;
+
+async function connectToMongo(uri) {
+  if (cache.conn && mongoose.connection.readyState === 1) {
+    return cache.conn;
+  }
+
+  if (!cache.promise) {
+    const opts = {
+      bufferCommands: false,
+      maxPoolSize: 10,
+      minPoolSize: 1,
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000
+    };
+
+    cache.promise = mongoose.connect(uri, opts).then(conn => {
+      cache.conn = conn;
+
+      if (!globalThis._mongoSeeded) {
+        globalThis._mongoSeeded = true;
+        checkAndSeedIfEmpty().catch(err => {
+          console.error("Background seed check warning:", err.message);
+        });
+      }
+
+      return conn;
+    }).catch(err => {
+      // Reset cached promise and connection on failure so container recovers cleanly
+      cache.promise = null;
+      cache.conn = null;
+      throw err;
+    });
+  }
+
+  try {
+    cache.conn = await cache.promise;
+  } catch (err) {
+    cache.promise = null;
+    cache.conn = null;
+    throw err;
+  }
+
+  return cache.conn;
+}
+
+// Reset cache on disconnect/error
+mongoose.connection.on('disconnected', () => {
+  if (globalThis._mongooseConnectionCache) {
+    globalThis._mongooseConnectionCache.conn = null;
+    globalThis._mongooseConnectionCache.promise = null;
+  }
+});
+mongoose.connection.on('error', () => {
+  if (globalThis._mongooseConnectionCache) {
+    globalThis._mongooseConnectionCache.conn = null;
+    globalThis._mongooseConnectionCache.promise = null;
+  }
+});
+
+async function checkAndSeedIfEmpty() {
+  if (isSeeding) return;
+  isSeeding = true;
+  try {
+    const branchCount = await Branch.estimatedDocumentCount();
+    if (branchCount > 0) {
+      // Database already seeded and healthy.
+      return;
+    }
+    await seedMongoData();
+  } catch (err) {
+    console.error("checkAndSeedIfEmpty error:", err);
+  } finally {
+    isSeeding = false;
+  }
+}
+
+async function seedMongoData() {
+  try {
+    // 1. Settings
+    const settingsCount = await OfficeSettings.estimatedDocumentCount();
+    if (settingsCount === 0) {
+      await OfficeSettings.create({
+        companyName: "اسم الشركة",
+        shiftHours: 8,
+        graceMinutes: 15,
+        workStartTime: "09:00",
+        workEndTime: "17:00"
+      });
+    }
+
+    // 2. Branches
+    const branchCount = await Branch.estimatedDocumentCount();
+    if (branchCount === 0) {
+      await Branch.insertMany(DEFAULT_BRANCHES);
+    }
+
+    // 3. Titles (Initialize only if empty - never delete existing custom roles)
+    const titleCount = await Title.estimatedDocumentCount();
+    if (titleCount === 0) {
+      await Title.insertMany(DEFAULT_TITLES);
+    }
+
+    // 4. Clean Initial Super Admin (if configured in .env and no employee exists)
+    const adminPhone = process.env.SEED_ADMIN_PHONE;
+    if (adminPhone) {
+      const existingAdmin = await Employee.findOne({ phone: adminPhone });
+      if (!existingAdmin) {
+        await Employee.create({
+          id: "emp_admin",
+          name: process.env.SEED_ADMIN_NAME || "المدير العام",
+          phone: adminPhone,
+          password: process.env.SEED_ADMIN_PASSWORD || "123456",
+          pin: "1234",
+          titleCode: "executive_director",
+          jobTitle: "المدير التنفيذي (Executive Director)",
+          branchId: "branch_main",
+          weeklyOffDays: ["friday", "saturday"],
+          leaveBalance: 21,
+          permissionsBalanceHours: 2,
+          isSuperAdmin: true,
+          isGhost: false,
+          createdAt: new Date().toISOString()
+        });
+      }
+    }
+  } catch (err) {
+    console.error("seedMongoData error:", err);
+  }
+}
+
+class MongoDatabaseAdapter {
+  constructor(uri) {
+    this.uri = uri;
+  }
+
+  async ensureConnected() {
+    if (!this.uri) return false;
+    await connectToMongo(this.uri);
+    return true;
+  }
+
+  async getTenant(tenantId = DEFAULT_TENANT_ID) {
+    await this.ensureConnected();
+    let tenant = await Tenant.findOne({ tenantId }).lean();
+    if (!tenant) {
+      tenant = await Tenant.create({
+        tenantId,
+        name: tenantId === 'default' ? 'الشركة' : tenantId,
+        timezone: 'Africa/Cairo'
+      });
+    }
+    return tenant;
+  }
+
+  async getOfficeSettings(tenantId = DEFAULT_TENANT_ID) {
+    await this.ensureConnected();
+    let s = await OfficeSettings.findOne({ tenantId }).lean();
+    if (!s) {
+      s = await OfficeSettings.create({
+        tenantId,
+        companyName: "اسم الشركة",
+        shiftHours: 8,
+        graceMinutes: 15,
+        workStartTime: "09:00",
+        workEndTime: "17:00"
+      });
+    }
+    return s;
+  }
+
+  async updateOfficeSettings(newSettings, tenantId = DEFAULT_TENANT_ID, actorContext = null) {
+    await this.ensureConnected();
+    const oldSettings = await OfficeSettings.findOne({ tenantId }).lean();
+    const updated = await OfficeSettings.findOneAndUpdate(
+      { tenantId },
+      { $set: newSettings },
+      { new: true, upsert: true }
+    ).lean();
+
+    logAudit({
+      tenantId,
+      actorId: actorContext?.userId,
+      actorName: actorContext?.name,
+      action: 'update_office_settings',
+      targetId: tenantId,
+      targetType: 'settings',
+      oldValue: oldSettings,
+      newValue: updated
+    });
+
+    return updated;
+  }
+
+  async getBranches(tenantId = DEFAULT_TENANT_ID) {
+    await this.ensureConnected();
+    return Branch.find({ tenantId, isArchived: { $ne: true } }).lean();
+  }
+
+  async getBranchById(id, tenantId = DEFAULT_TENANT_ID) {
+    await this.ensureConnected();
+    const b = await Branch.findOne({ tenantId, $or: [{ id }, { code: id }] }).lean();
+    return b || DEFAULT_BRANCHES[0];
+  }
+
+  async createBranch(branchData, tenantId = DEFAULT_TENANT_ID, actorContext = null) {
+    await this.ensureConnected();
+    const id = branchData.id || `branch_${Date.now()}`;
+    const code = branchData.code || `branch_${Date.now()}`;
+    const newBranch = await Branch.create({
+      id,
+      tenantId,
+      code,
+      name: branchData.name,
+      city: branchData.city || 'القاهرة',
+      latitude: Number(branchData.latitude),
+      longitude: Number(branchData.longitude),
+      radiusMeters: Number(branchData.radiusMeters || 100),
+      sectorId: branchData.sectorId || 'sector_main',
+      sectorName: branchData.sectorName || 'القطاع الرئيسي',
+      isArchived: false
+    });
+
+    logAudit({
+      tenantId,
+      actorId: actorContext?.userId,
+      actorName: actorContext?.name,
+      action: 'create_branch',
+      targetId: id,
+      targetType: 'branch',
+      newValue: newBranch.toObject ? newBranch.toObject() : newBranch
+    });
+
+    return newBranch.toObject ? newBranch.toObject() : newBranch;
+  }
+
+  async updateBranch(id, branchData, tenantId = DEFAULT_TENANT_ID, actorContext = null) {
+    await this.ensureConnected();
+    const oldBranch = await Branch.findOne({ tenantId, $or: [{ id }, { code: id }] }).lean();
+    const updated = await Branch.findOneAndUpdate(
+      { tenantId, $or: [{ id }, { code: id }] },
+      { $set: branchData },
+      { new: true }
+    ).lean();
+
+    if (updated && oldBranch) {
+      logAudit({
+        tenantId,
+        actorId: actorContext?.userId,
+        actorName: actorContext?.name,
+        action: 'update_branch_gps',
+        targetId: id,
+        targetType: 'branch',
+        oldValue: { latitude: oldBranch.latitude, longitude: oldBranch.longitude, radiusMeters: oldBranch.radiusMeters },
+        newValue: { latitude: updated.latitude, longitude: updated.longitude, radiusMeters: updated.radiusMeters }
+      });
+    }
+
+    return updated;
+  }
+
+  async deleteBranch(id, tenantId = DEFAULT_TENANT_ID, actorContext = null) {
+    await this.ensureConnected();
+    const branch = await Branch.findOne({ tenantId, $or: [{ id }, { code: id }] });
+    if (!branch) {
+      throw new Error("الفرع غير موجود.");
+    }
+
+    const assignedCount = await Employee.countDocuments({ tenantId, branchId: branch.id });
+    if (assignedCount > 0) {
+      throw new Error(`لا يمكن حذف هذا الفرع لوجود (${assignedCount}) موظف مسجلين به حالياً. يرجى نقلهم لفرع آخر أولاً.`);
+    }
+
+    const totalBranches = await Branch.countDocuments({ tenantId, isArchived: { $ne: true } });
+    if (totalBranches <= 1) {
+      throw new Error("لا يمكن حذف هذا الفرع لأنه الفرع الوحيد المتبقي في النظام.");
+    }
+
+    await Branch.deleteOne({ tenantId, id: branch.id });
+
+    logAudit({
+      tenantId,
+      actorId: actorContext?.userId,
+      actorName: actorContext?.name,
+      action: 'delete_branch',
+      targetId: branch.id,
+      targetType: 'branch',
+      oldValue: branch.toObject ? branch.toObject() : branch
+    });
+
+    return { success: true, message: `تم حذف فرع "${branch.name}" بنجاح.` };
+  }
+
+  async getTitles(includeHidden = false, tenantId = DEFAULT_TENANT_ID) {
+    await this.ensureConnected();
+    const query = includeHidden ? { tenantId } : { tenantId, isHidden: { $ne: true } };
+    const titles = await Title.find(query).lean();
+    return titles.map(t => {
+      const defaultTitle = DEFAULT_TITLES.find(dt => dt.code === t.code);
+      const defaultPerms = defaultTitle ? defaultTitle.permissions : {};
+      return {
+        ...t,
+        nameAr: t.nameAr || t.arabicTitle || t.name,
+        nameEn: t.nameEn || t.englishTitle || '',
+        arabicTitle: t.arabicTitle || t.nameAr || t.name,
+        englishTitle: t.englishTitle || t.nameEn || '',
+        level: t.level || t.order || 4,
+        permissions: {
+          ...defaultPerms,
+          ...(t.permissions || {})
+        }
+      };
+    }).sort((a, b) => (a.order || a.level || 99) - (b.order || b.level || 99));
+  }
+
+  async createTitle(titleData, tenantId = DEFAULT_TENANT_ID, actorContext = null) {
+    await this.ensureConnected();
+    const nameAr = (titleData.nameAr || titleData.arabicTitle || titleData.name || '').trim();
+    const nameEn = (titleData.nameEn || titleData.englishTitle || '').trim();
+    const code = titleData.code || nameEn.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || `role_${Date.now()}`;
+    const id = titleData.id || `title_${Date.now()}`;
+
+    if (!nameAr) {
+      throw new Error("اسم المسمى الوظيفي بالعربية مطلوب.");
+    }
+
+    const existing = await Title.findOne({ tenantId, code });
+    if (existing) {
+      throw new Error("يوجد مسمى وظيفي بنفس الكود بالفعل.");
+    }
+
+    const maxOrderDoc = await Title.findOne({ tenantId }).sort({ order: -1 }).lean();
+    const newOrder = (maxOrderDoc?.order || 0) + 1;
+
+    const newTitle = await Title.create({
+      id,
+      tenantId,
+      code,
+      name: `${nameAr} (${nameEn})`.trim() || nameAr,
+      nameAr,
+      nameEn,
+      arabicTitle: nameAr,
+      englishTitle: nameEn,
+      description: titleData.description || '',
+      color: titleData.color || 'zinc',
+      order: titleData.order || newOrder,
+      level: titleData.level || newOrder,
+      isSystemAdmin: Boolean(titleData.isSystemAdmin),
+      permissions: {
+        check_in_out: true,
+        view_own_attendance: true,
+        view_office_presence: true,
+        request_leave: true,
+        request_permission: true,
+        approve_leaves_permissions: false,
+        approve_early_checkout: false,
+        manage_employees: false,
+        manage_titles_permissions: false,
+        manage_office_settings: false,
+        view_reports: false,
+        view_all_branches: false,
+        override_early_checkout: false,
+        edit_employee_details: false,
+        ...(titleData.permissions || {})
+      }
+    });
+
+    logAudit({
+      tenantId,
+      actorId: actorContext?.userId,
+      actorName: actorContext?.name,
+      action: 'create_role',
+      targetId: code,
+      targetType: 'title',
+      newValue: newTitle.toObject ? newTitle.toObject() : newTitle
+    });
+
+    return newTitle.toObject ? newTitle.toObject() : newTitle;
+  }
+
+  async updateTitle(code, updateData, tenantId = DEFAULT_TENANT_ID, actorContext = null) {
+    await this.ensureConnected();
+    const title = await Title.findOne({ tenantId, code });
+    if (!title) {
+      throw new Error("المسمى الوظيفي غير موجود.");
+    }
+
+    const oldTitle = title.toObject ? title.toObject() : { ...title };
+
+    if (updateData.nameAr || updateData.arabicTitle) {
+      title.nameAr = updateData.nameAr || updateData.arabicTitle;
+      title.arabicTitle = title.nameAr;
+    }
+    if (updateData.nameEn || updateData.englishTitle) {
+      title.nameEn = updateData.nameEn || updateData.englishTitle;
+      title.englishTitle = title.nameEn;
+    }
+    if (updateData.nameAr || updateData.nameEn) {
+      title.name = `${title.nameAr || ''} (${title.nameEn || ''})`.trim() || title.nameAr || title.nameEn;
+    }
+    if (updateData.description !== undefined) title.description = updateData.description;
+    if (updateData.color !== undefined) title.color = updateData.color;
+    if (updateData.order !== undefined) title.order = updateData.order;
+    if (updateData.level !== undefined) title.level = updateData.level;
+    if (updateData.permissions) {
+      title.permissions = {
+        ...(title.permissions ? (title.permissions.toObject ? title.permissions.toObject() : title.permissions) : {}),
+        ...updateData.permissions
+      };
+      title.markModified('permissions');
+    }
+
+    await title.save();
+
+    logAudit({
+      tenantId,
+      actorId: actorContext?.userId,
+      actorName: actorContext?.name,
+      action: 'update_role',
+      targetId: code,
+      targetType: 'title',
+      oldValue: oldTitle,
+      newValue: title.toObject ? title.toObject() : title
+    });
+
+    return title.toObject ? title.toObject() : title;
+  }
+
+  async deleteTitle(code, tenantId = DEFAULT_TENANT_ID, actorContext = null) {
+    await this.ensureConnected();
+    const title = await Title.findOne({ tenantId, code });
+    if (!title) {
+      throw new Error("المسمى الوظيفي غير موجود.");
+    }
+
+    if (title.isSystemAdmin || title.order === 1 || code === 'executive_director' || code === 'memberships_executive_director') {
+      throw new Error("لا يمكن حذف هذا المسمى الوظيفي لأنه محمي كنظام إدارة أساسي.");
+    }
+
+    if (actorContext?.titleCode === code) {
+      throw new Error("لا يمكنك حذف المسمى الوظيفي الخاص بك لتجنب إغلاق النظام على نفسك.");
+    }
+
+    const assignedCount = await Employee.countDocuments({ tenantId, titleCode: code });
+    if (assignedCount > 0) {
+      throw new Error(`لا يمكن حذف هذا المسمى الوظيفي لوجود (${assignedCount}) موظف مسجلين به حالياً. يرجى تغيير مسماهم أولاً.`);
+    }
+
+    await Title.deleteOne({ tenantId, code });
+
+    logAudit({
+      tenantId,
+      actorId: actorContext?.userId,
+      actorName: actorContext?.name,
+      action: 'delete_role',
+      targetId: code,
+      targetType: 'title',
+      oldValue: title.toObject ? title.toObject() : title
+    });
+
+    return { success: true, message: `تم حذف المسمى الوظيفي "${title.nameAr || title.name}" بنجاح.` };
+  }
+
+  async reorderTitles(orderedCodes, tenantId = DEFAULT_TENANT_ID, actorContext = null) {
+    await this.ensureConnected();
+    if (!Array.isArray(orderedCodes)) {
+      throw new Error("قائمة الأكواد يجب أن تكون مصفوفة مرتبة.");
+    }
+
+    for (let i = 0; i < orderedCodes.length; i++) {
+      const code = orderedCodes[i];
+      await Title.updateOne(
+        { tenantId, code },
+        { $set: { order: i + 1, level: i + 1 } }
+      );
+    }
+
+    logAudit({
+      tenantId,
+      actorId: actorContext?.userId,
+      actorName: actorContext?.name,
+      action: 'reorder_roles',
+      targetId: tenantId,
+      targetType: 'title',
+      newValue: orderedCodes
+    });
+
+    return this.getTitles(false, tenantId);
+  }
+
+  async updateTitlePermissions(code, permissions, tenantId = DEFAULT_TENANT_ID, actorContext = null) {
+    await this.ensureConnected();
+    const doc = await Title.findOne({ tenantId, code });
+    if (!doc) return null;
+    const currentPerms = doc.permissions ? (doc.permissions.toObject ? doc.permissions.toObject() : doc.permissions) : {};
+    const updatedPerms = { ...currentPerms, ...permissions };
+    doc.permissions = updatedPerms;
+    doc.markModified('permissions');
+    await doc.save();
+
+    logAudit({
+      tenantId,
+      actorId: actorContext?.userId,
+      actorName: actorContext?.name,
+      action: 'update_role_permissions',
+      targetId: code,
+      targetType: 'title',
+      oldValue: currentPerms,
+      newValue: updatedPerms
+    });
+
+    return doc.toObject ? doc.toObject() : doc;
+  }
+
+  async getSectors() {
+    return DEFAULT_SECTORS;
+  }
+
+  async getEmployees(branchId = null, includeGhost = false, tenantId = DEFAULT_TENANT_ID) {
+    await this.ensureConnected();
+    let query = { tenantId };
+    if (!includeGhost) {
+      query.isGhost = { $ne: true };
+    }
+    if (branchId && branchId !== 'all') {
+      if (Array.isArray(branchId)) {
+        query.branchId = { $in: branchId };
+      } else if (branchId.includes(',')) {
+        query.branchId = { $in: branchId.split(',') };
+      } else {
+        query.branchId = branchId;
+      }
+    }
+    const [employees, titles, branches] = await Promise.all([
+      Employee.find(query).lean(),
+      Title.find({ tenantId }).lean(),
+      Branch.find({ tenantId }).lean()
+    ]);
+
+    return employees.map(emp => {
+      const titleObj = titles.find(t => t.code === emp.titleCode);
+      const branchObj = branches.find(b => b.id === emp.branchId);
+      const isSuper = Boolean(emp.isSuperAdmin);
+      return {
+        ...emp,
+        isSuperAdmin: isSuper,
+        isGhost: Boolean(emp.isGhost),
+        titleDetails: titleObj || null,
+        branchDetails: branchObj || null,
+        branchName: branchObj ? branchObj.name : 'غير محدد',
+        permissions: isSuper
+          ? {
+              check_in_out: true,
+              view_own_attendance: true,
+              view_office_presence: true,
+              request_leave: true,
+              request_permission: true,
+              approve_leaves_permissions: true,
+              approve_early_checkout: true,
+              manage_employees: true,
+              manage_titles_permissions: true,
+              manage_office_settings: true,
+              view_reports: true,
+              view_all_branches: true,
+              override_early_checkout: true
+            }
+          : (titleObj ? titleObj.permissions : {})
+      };
+    });
+  }
+
+  async getEmployeeById(id) {
+    await this.ensureConnected();
+    const emp = await Employee.findOne({ id }).lean();
+    if (!emp) return null;
+    const [titleObj, branchObj] = await Promise.all([
+      Title.findOne({ code: emp.titleCode }).lean(),
+      Branch.findOne({ id: emp.branchId }).lean()
+    ]);
+    const isSuper = Boolean(emp.isSuperAdmin);
+    return {
+      ...emp,
+      isSuperAdmin: isSuper,
+      isGhost: isSuper ? true : Boolean(emp.isGhost),
+      titleDetails: titleObj || null,
+      branchDetails: branchObj || null,
+      branchName: branchObj ? branchObj.name : 'غير محدد',
+      permissions: isSuper
+        ? {
+            check_in_out: true,
+            view_own_attendance: true,
+            view_office_presence: true,
+            request_leave: true,
+            request_permission: true,
+            approve_leaves_permissions: true,
+            approve_early_checkout: true,
+            manage_employees: true,
+            manage_titles_permissions: true,
+            manage_office_settings: true,
+            view_reports: true,
+            view_all_branches: true,
+            override_early_checkout: true,
+            edit_employee_details: true
+          }
+        : (titleObj ? titleObj.permissions : {})
+    };
+  }
+
+  async registerEmployee(empData) {
+    await this.ensureConnected();
+    const cleanPhone = empData.phone.trim();
+    const cleanSap = empData.sapNumber ? String(empData.sapNumber).trim() : "";
+    const existing = await Employee.findOne({ phone: cleanPhone });
+    if (existing) {
+      throw new Error(`رقم الهاتف (${empData.phone}) مسجل بالفعل لموظف آخر.`);
+    }
+    if (cleanSap) {
+      const existingSap = await Employee.findOne({ sapNumber: cleanSap });
+      if (existingSap) {
+        throw new Error(`كود الـ SAP (${cleanSap}) مسجل بالفعل لموظف آخر (${existingSap.name}).`);
+      }
+    }
+
+    // Strict 1 Device = 1 Employee: Prevent creating an account on a device already bound to an employee
+    const incomingDeviceId = empData.deviceId ? String(empData.deviceId).trim() : "";
+    if (incomingDeviceId) {
+      const existingDevice = await Employee.findOne({ boundDeviceId: incomingDeviceId }).lean();
+      if (existingDevice) {
+        throw new Error("هذا الهاتف مسجل عليه حساب موظف بالفعل. يرجى تسجيل الدخول بحسابك أو مراجعة الإدارة.");
+      }
+    }
+
+    if (empData.weeklyOffDays && Array.isArray(empData.weeklyOffDays)) {
+      if (empData.weeklyOffDays.length === 0 || empData.weeklyOffDays.length > 2) {
+        throw new Error("يجب اختيار يوم أو يومين فقط كحد أقصى للإجازة الأسبوعية.");
+      }
+    }
+
+    const newEmp = new Employee({
+      id: "emp_" + Date.now(),
+      name: empData.name.trim(),
+      phone: cleanPhone,
+      sapNumber: cleanSap,
+      password: (empData.password || empData.pin || "1234").trim(),
+      pin: (empData.pin || empData.password || "1234").trim(),
+      titleCode: empData.titleCode || "employee",
+      jobTitle: empData.jobTitle || "Employee",
+      branchId: empData.branchId || "main_branch",
+      sectorId: empData.sectorId || "",
+      sectorName: empData.sectorName || "",
+      weeklyOffDays: empData.weeklyOffDays || ["friday", "saturday"],
+      weeklyOffDaysLocked: true,
+      avatar: empData.avatar || "",
+      leaveBalance: empData.leaveBalance !== undefined ? empData.leaveBalance : 30,
+      permissionsBalanceHours: empData.permissionsBalanceHours !== undefined ? empData.permissionsBalanceHours : 2,
+      boundDeviceId: empData.deviceId || null,
+      deviceInfo: empData.deviceInfo || null,
+      deviceBoundAt: empData.deviceId ? new Date().toISOString() : null,
+      createdAt: new Date().toISOString()
+    });
+
+    await newEmp.save();
+
+    const [titleObj, branchObj] = await Promise.all([
+      Title.findOne({ code: newEmp.titleCode }).lean(),
+      Branch.findOne({ id: newEmp.branchId }).lean()
+    ]);
+
+    return {
+      ...newEmp.toObject(),
+      isSuperAdmin: false,
+      isGhost: false,
+      titleDetails: titleObj || null,
+      branchDetails: branchObj || null,
+      branchName: branchObj ? branchObj.name : 'غير محدد',
+      permissions: titleObj ? titleObj.permissions : {}
+    };
+  }
+
+  async _enrichEmployee(emp, deviceContext = null) {
+    const isSuper = Boolean(emp.isSuperAdmin);
+
+    // Device binding check (Super Admin can login from any device, no restriction)
+    if (!isSuper && deviceContext && deviceContext.deviceId) {
+      const incomingDeviceId = String(deviceContext.deviceId).trim();
+
+      // Strict 1 Device = 1 Employee: Check if device belongs to ANOTHER employee
+      const existingDeviceOwner = await Employee.findOne({
+        boundDeviceId: incomingDeviceId,
+        id: { $ne: emp.id }
+      }).lean();
+
+      if (existingDeviceOwner) {
+        throw new Error("هذا الهاتف مسجل عليه حساب موظف بالفعل. يرجى تسجيل الدخول بحسابك أو مراجعة الإدارة.");
+      }
+
+      if (!emp.boundDeviceId) {
+        emp.boundDeviceId = incomingDeviceId;
+        emp.deviceInfo = deviceContext.deviceInfo || 'جهاز الهاتف المسجل';
+        emp.deviceBoundAt = new Date().toISOString();
+        await emp.save();
+      } else if (emp.boundDeviceId !== incomingDeviceId) {
+        const boundDate = emp.deviceBoundAt ? new Date(emp.deviceBoundAt).toLocaleDateString('ar-EG', { timeZone: 'Africa/Cairo' }) : '';
+        throw new Error(`عذراً، هذا الحساب مرتبط بجهاز آخر بالفعل (${emp.deviceInfo || 'الهاتف المعتمد الأول'} - ${boundDate}). لا يُسمح بتسجيل الدخول من أكثر من جهاز. يرجى مراجعة إدارة الموارد البشرية لفك ارتباط جهازك القديم ونقله للجهاز الجديد.`);
+      }
+    }
+
+    const [titleObj, branchObj] = await Promise.all([
+      Title.findOne({ code: emp.titleCode }).lean(),
+      Branch.findOne({ id: emp.branchId }).lean()
+    ]);
+
+    const empObj = emp.toObject ? emp.toObject() : emp;
+    return {
+      ...empObj,
+      isSuperAdmin: isSuper,
+      isGhost: isSuper ? true : Boolean(emp.isGhost),
+      titleDetails: titleObj || null,
+      branchDetails: branchObj || null,
+      branchName: branchObj ? branchObj.name : 'غير محدد',
+      permissions: isSuper
+        ? {
+            check_in_out: true,
+            view_own_attendance: true,
+            view_office_presence: true,
+            request_leave: true,
+            request_permission: true,
+            approve_leaves_permissions: true,
+            approve_early_checkout: true,
+            manage_employees: true,
+            manage_titles_permissions: true,
+            manage_office_settings: true,
+            view_reports: true,
+            view_all_branches: true,
+            override_early_checkout: true
+          }
+        : (titleObj ? titleObj.permissions : {})
+    };
+  }
+
+  async loginEmployee(identifier, password, deviceContext = null) {
+    await this.ensureConnected();
+    const clean = String(identifier || "").trim();
+    // Allow login by either phone number or SAP code
+    const emp = await Employee.findOne({
+      $or: [
+        { phone: clean },
+        { sapNumber: clean }
+      ]
+    });
+    if (!emp) {
+      throw new Error("رقم الهاتف أو كود SAP غير مسجل بالنظام.");
+    }
+
+    const expectedPass = emp.password || emp.pin || "";
+    if (expectedPass && expectedPass !== password.trim()) {
+      throw new Error("كلمة المرور غير صحيحة.");
+    }
+
+    return await this._enrichEmployee(emp, deviceContext);
+  }
+
+  async getEmployeeByPhone(phone) {
+    await this.ensureConnected();
+    return await Employee.findOne({ phone: phone.trim() });
+  }
+
+  async getEmployeeByPasskeyId(credentialId) {
+    await this.ensureConnected();
+    return await Employee.findOne({ 'passkeys.id': credentialId });
+  }
+
+  async addPasskeyToEmployee(employeeId, passkeyData) {
+    await this.ensureConnected();
+    const emp = await Employee.findOne({ id: employeeId });
+    if (!emp) throw new Error("الموظف غير موجود بالنظام.");
+    if (!emp.passkeys) emp.passkeys = [];
+    emp.passkeys = emp.passkeys.filter(p => p.id !== passkeyData.id);
+    emp.passkeys.push(passkeyData);
+    emp.markModified('passkeys');
+    await emp.save();
+    return emp;
+  }
+
+  async removePasskeyFromEmployee(employeeId, credentialId) {
+    await this.ensureConnected();
+    const emp = await Employee.findOne({ id: employeeId });
+    if (!emp) throw new Error("الموظف غير موجود بالنظام.");
+    if (emp.passkeys) {
+      emp.passkeys = emp.passkeys.filter(p => p.id !== credentialId);
+      emp.markModified('passkeys');
+      await emp.save();
+    }
+    return emp;
+  }
+
+  async updatePasskeyCounter(employeeId, credentialId, newCounter) {
+    await this.ensureConnected();
+    const emp = await Employee.findOne({ id: employeeId });
+    if (!emp || !emp.passkeys) return;
+    const pk = emp.passkeys.find(p => p.id === credentialId);
+    if (pk) {
+      pk.counter = newCounter;
+      emp.markModified('passkeys');
+      await emp.save();
+    }
+  }
+
+  async saveWebAuthnChallenge(challenge, metadata = {}) {
+    await this.ensureConnected();
+    try {
+      await WebAuthnChallenge.create({
+        challenge,
+        userId: metadata.userId || '',
+        phone: metadata.phone || '',
+        type: metadata.type || 'authentication'
+      });
+    } catch (e) {
+      console.warn("Could not persist WebAuthnChallenge:", e.message);
+    }
+  }
+
+  async consumeWebAuthnChallenge(challenge) {
+    await this.ensureConnected();
+    try {
+      return await WebAuthnChallenge.findOneAndDelete({ challenge });
+    } catch (e) {
+      return null;
+    }
+  }
+
+  async loginEmployeeByPasskey(emp, deviceContext = null) {
+    await this.ensureConnected();
+    return await this._enrichEmployee(emp, deviceContext);
+  }
+
+  async resetEmployeeDevice(employeeId, tenantId = DEFAULT_TENANT_ID, actorContext = null) {
+    await this.ensureConnected();
+    const resolvedTenant = tenantId || DEFAULT_TENANT_ID;
+    const emp = await Employee.findOne({ tenantId: resolvedTenant, id: employeeId });
+    if (!emp) throw new Error("الموظف غير موجود.");
+    const oldBound = emp.boundDeviceId;
+    emp.boundDeviceId = null;
+    emp.deviceInfo = null;
+    emp.deviceBoundAt = null;
+    await emp.save();
+
+    logAudit({
+      tenantId: resolvedTenant,
+      actorId: actorContext?.userId,
+      actorName: actorContext?.name,
+      action: 'unbind_employee_device',
+      targetId: employeeId,
+      targetType: 'employee',
+      oldValue: { boundDeviceId: oldBound },
+      newValue: { boundDeviceId: null }
+    });
+
+    return { success: true, message: `تم فك ارتباط الجهاز للموظف (${emp.name}) بنجاح. يمكنه الآن تسجيل الدخول من جهازه الجديد وسيتم اعتماده تلقائياً.` };
+  }
+
+  async resetEmployeePassword(employeeId, newPassword = '1234', tenantId = DEFAULT_TENANT_ID, actorContext = null) {
+    await this.ensureConnected();
+    const resolvedTenant = tenantId || DEFAULT_TENANT_ID;
+    const emp = await Employee.findOne({ tenantId: resolvedTenant, id: employeeId });
+    if (!emp) throw new Error("الموظف غير موجود.");
+
+    // Super Admin Protection: Only super admin can reset super admin password
+    const isTargetSuper = Boolean(emp.isSuperAdmin);
+    const isActorSuper = Boolean(actorContext?.isSuperAdmin);
+    if (isTargetSuper && !isActorSuper) {
+      throw new Error("غير مصرح: لا يمكن تعديل كلمة مرور مدير النظام العام إلا بواسطة مدير عام آخر.");
+    }
+
+    const cleanPass = String(newPassword || '').trim() || '1234';
+    if (cleanPass.length < 3) {
+      throw new Error("كلمة المرور يجب ألا تقل عن 3 خانات.");
+    }
+
+    emp.password = cleanPass;
+    emp.pin = cleanPass;
+    await emp.save();
+
+    logAudit({
+      tenantId: resolvedTenant,
+      actorId: actorContext?.userId,
+      actorName: actorContext?.name,
+      action: 'reset_employee_password',
+      targetId: employeeId,
+      targetType: 'employee',
+      oldValue: null,
+      newValue: { passwordChanged: true },
+      req: null
+    });
+
+    return { 
+      success: true, 
+      message: `تمت إعادة تعيين كلمة مرور الموظف (${emp.name}) بنجاح إلى "${cleanPass}".`,
+      newPassword: cleanPass
+    };
+  }
+
+  async updateEmployeeBalances(employeeId, { leaveBalance, permissionsBalanceHours }, tenantId = DEFAULT_TENANT_ID, actorContext = null) {
+    await this.ensureConnected();
+    const resolvedTenant = tenantId || DEFAULT_TENANT_ID;
+    const emp = await Employee.findOne({ tenantId: resolvedTenant, id: employeeId });
+    if (!emp) throw new Error("الموظف غير موجود.");
+
+    const oldBalances = {
+      leaveBalance: emp.leaveBalance,
+      permissionsBalanceHours: emp.permissionsBalanceHours
+    };
+
+    if (leaveBalance !== undefined && leaveBalance !== null) emp.leaveBalance = Number(leaveBalance);
+    if (permissionsBalanceHours !== undefined && permissionsBalanceHours !== null) emp.permissionsBalanceHours = Number(permissionsBalanceHours);
+    await emp.save();
+
+    logAudit({
+      tenantId: resolvedTenant,
+      actorId: actorContext?.userId,
+      actorName: actorContext?.name,
+      action: 'update_employee_balances',
+      targetId: employeeId,
+      targetType: 'employee',
+      oldValue: oldBalances,
+      newValue: {
+        leaveBalance: emp.leaveBalance,
+        permissionsBalanceHours: emp.permissionsBalanceHours
+      }
+    });
+
+    return this.getEmployeeById(employeeId, resolvedTenant);
+  }
+
+  async updateEmployeeDetails(employeeId, data, tenantId = DEFAULT_TENANT_ID, actorContext = null) {
+    await this.ensureConnected();
+    const resolvedTenant = tenantId || DEFAULT_TENANT_ID;
+    const emp = await Employee.findOne({ tenantId: resolvedTenant, id: employeeId });
+    if (!emp) throw new Error("الموظف غير موجود.");
+
+    const oldDetails = {
+      name: emp.name,
+      phone: emp.phone,
+      sapNumber: emp.sapNumber,
+      titleCode: emp.titleCode,
+      branchId: emp.branchId,
+      weeklyOffDays: emp.weeklyOffDays,
+      leaveBalance: emp.leaveBalance,
+      permissionsBalanceHours: emp.permissionsBalanceHours
+    };
+
+    // Super Admin Protection
+    if (emp.isSuperAdmin && !actorContext?.isSuperAdmin) {
+      throw new Error("لا يمكن تعديل بيانات مدير النظام العام إلا بواسطة مدير عام آخر.");
+    }
+
+    if (data.name && data.name.trim()) {
+      emp.name = data.name.trim();
+    }
+    if (data.phone && data.phone.trim()) {
+      const cleanPhone = data.phone.trim();
+      const existing = await Employee.findOne({ tenantId: resolvedTenant, phone: cleanPhone, id: { $ne: employeeId } });
+      if (existing) {
+        throw new Error(`رقم الهاتف (${cleanPhone}) مسجل بالفعل لموظف آخر.`);
+      }
+      emp.phone = cleanPhone;
+    }
+    if (data.sapNumber !== undefined) {
+      const cleanSap = String(data.sapNumber || '').trim();
+      if (cleanSap) {
+        const existingSap = await Employee.findOne({ tenantId: resolvedTenant, sapNumber: cleanSap, id: { $ne: employeeId } });
+        if (existingSap) {
+          throw new Error(`كود الـ SAP (${cleanSap}) مسجل بالفعل لموظف آخر (${existingSap.name}).`);
+        }
+      }
+      emp.sapNumber = cleanSap;
+    }
+    if (data.titleCode) {
+      emp.titleCode = data.titleCode;
+      const titleObj = await Title.findOne({ tenantId: resolvedTenant, code: data.titleCode }).lean();
+      if (titleObj) {
+        emp.jobTitle = titleObj.nameAr || titleObj.arabicTitle || titleObj.name;
+      }
+    }
+    if (data.branchId) {
+      const branchObj = await Branch.findOne({ tenantId: resolvedTenant, id: data.branchId }).lean();
+      if (branchObj) {
+        emp.branchId = branchObj.id;
+      }
+    }
+    if (data.sectorId !== undefined) {
+      emp.sectorId = data.sectorId || '';
+      emp.sectorName = data.sectorName || '';
+    }
+    if (data.weeklyOffDays && Array.isArray(data.weeklyOffDays)) {
+      if (data.weeklyOffDays.length > 2) {
+        throw new Error("لا يمكن تعيين أكثر من يومين للإجازة الأسبوعية (الحد الأقصى يومان).");
+      }
+      emp.weeklyOffDays = data.weeklyOffDays;
+      emp.weeklyOffDaysLocked = true;
+    }
+    if (data.leaveBalance !== undefined && data.leaveBalance !== null) {
+      emp.leaveBalance = Number(data.leaveBalance);
+    }
+    if (data.permissionsBalanceHours !== undefined && data.permissionsBalanceHours !== null) {
+      emp.permissionsBalanceHours = Number(data.permissionsBalanceHours);
+    }
+    if (data.newPassword && String(data.newPassword).trim()) {
+      const cleanPass = String(data.newPassword).trim();
+      if (cleanPass.length < 3) {
+        throw new Error("كلمة المرور الجديدة يجب ألا تقل عن 3 خانات.");
+      }
+      emp.password = cleanPass;
+      emp.pin = cleanPass;
+    }
+
+    await emp.save();
+
+    logAudit({
+      tenantId: resolvedTenant,
+      actorId: actorContext?.userId,
+      actorName: actorContext?.name,
+      action: 'update_employee_details',
+      targetId: employeeId,
+      targetType: 'employee',
+      oldValue: oldDetails,
+      newValue: {
+        name: emp.name,
+        phone: emp.phone,
+        sapNumber: emp.sapNumber,
+        titleCode: emp.titleCode,
+        branchId: emp.branchId,
+        weeklyOffDays: emp.weeklyOffDays,
+        leaveBalance: emp.leaveBalance,
+        permissionsBalanceHours: emp.permissionsBalanceHours
+      }
+    });
+
+    return this.getEmployeeById(employeeId, resolvedTenant);
+  }
+
+  async setEmployeeSapNumber(employeeId, sapNumber) {
+    await this.ensureConnected();
+    const cleanSap = String(sapNumber || "").trim();
+    if (!cleanSap) {
+      throw new Error("كود الـ SAP مطلوب ولا يمكن أن يكون فارغاً.");
+    }
+    const existing = await Employee.findOne({ sapNumber: cleanSap, id: { $ne: employeeId } });
+    if (existing) {
+      throw new Error(`كود الـ SAP (${cleanSap}) مسجل بالفعل لموظف آخر (${existing.name}). يرجى التأكد من الكود.`);
+    }
+
+    const emp = await Employee.findOne({ id: employeeId });
+    if (!emp) {
+      throw new Error("الموظف غير موجود بالنظام.");
+    }
+    emp.sapNumber = cleanSap;
+    await emp.save();
+    return await this._enrichEmployee(emp);
+  }
+
+  // Push Notifications Management
+  async savePushSubscription(employeeId, subscription, userAgent = '') {
+    await this.ensureConnected();
+    if (!subscription || !subscription.endpoint) {
+      throw new Error("بيانات الاشتراك في الإشعارات غير مكتملة.");
+    }
+    return PushSubscription.findOneAndUpdate(
+      { endpoint: subscription.endpoint },
+      {
+        employeeId,
+        subscription,
+        userAgent,
+        createdAt: new Date()
+      },
+      { upsert: true, new: true }
+    );
+  }
+
+  async removePushSubscription(endpoint) {
+    await this.ensureConnected();
+    return PushSubscription.deleteOne({ endpoint });
+  }
+
+  async sendPushNotification(employeeId, payload) {
+    if (!webPush) return { sentCount: 0 };
+    await this.ensureConnected();
+    const subs = await PushSubscription.find({ employeeId }).lean();
+    if (!subs || subs.length === 0) return { sentCount: 0 };
+
+    const payloadStr = typeof payload === 'string' ? payload : JSON.stringify(payload);
+    let sentCount = 0;
+
+    await Promise.allSettled(
+      subs.map(async (sub) => {
+        try {
+          await webPush.sendNotification(sub.subscription, payloadStr);
+          sentCount++;
+        } catch (err) {
+          if (err.statusCode === 410 || err.statusCode === 404) {
+            await PushSubscription.deleteOne({ endpoint: sub.endpoint }).catch(() => {});
+          } else {
+            console.warn(`Push delivery warning to employee ${employeeId}:`, err.message);
+          }
+        }
+      })
+    );
+
+    return { sentCount };
+  }
+
+  // In-App Notifications
+  async createInAppNotification({ recipientId, title, body, type = 'system', relatedId = '', url = '/?tab=leaves' }) {
+    await this.ensureConnected();
+    try {
+      const notif = new InAppNotification({
+        id: "notif_" + Date.now() + "_" + Math.random().toString(36).substr(2, 5),
+        recipientId,
+        title,
+        body,
+        type,
+        relatedId,
+        url,
+        read: false,
+        createdAt: new Date().toISOString()
+      });
+      await notif.save();
+      return notif.toObject();
+    } catch (err) {
+      console.warn("Failed to create in-app notification:", err.message);
+      return null;
+    }
+  }
+
+  async getInAppNotifications(recipientId, limit = 40) {
+    await this.ensureConnected();
+    const notifications = await InAppNotification.find({ recipientId })
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean();
+    const unreadCount = await InAppNotification.countDocuments({ recipientId, read: false });
+    return { notifications, unreadCount };
+  }
+
+  async markInAppNotificationsAsRead(recipientId, notificationIds = null) {
+    await this.ensureConnected();
+    const query = { recipientId };
+    if (notificationIds && Array.isArray(notificationIds) && notificationIds.length > 0) {
+      query.id = { $in: notificationIds };
+    }
+    await InAppNotification.updateMany(query, { $set: { read: true } });
+    return this.getInAppNotifications(recipientId);
+  }
+
+  // Active Work Mission for today
+  async getActiveWorkMission(employeeId, dateStr = null) {
+    await this.ensureConnected();
+    const targetDate = dateStr || getCairoDateString();
+    return Request.findOne({
+      employeeId,
+      type: 'leave',
+      leaveType: 'work_mission',
+      status: 'approved',
+      $or: [
+        { missionDate: targetDate },
+        { date: targetDate },
+        { startDate: { $lte: targetDate }, endDate: { $gte: targetDate } }
+      ]
+    }).lean();
+  }
+
+  // Auto Forced Check-out at 23:59:
+  // If an employee checked in and forgot to check out, system automatically checks them out
+  // at 23:59:59 of that day and marks autoCheckedOut: true.
+  async closeExpiredAttendanceRecords() {
+    await this.ensureConnected();
+    const today = getCairoDateString();
+    const { hour, minute } = getCairoHourMinute();
+
+    // Past open records (date < today) or today's record if 23:59 or later
+    const expiredQuery = {
+      checkOutTime: null,
+      $or: [
+        { date: { $lt: today } }
+      ]
+    };
+
+    if (hour === 23 && minute >= 59) {
+      expiredQuery.$or.push({ date: today });
+    }
+
+    const openRecords = await AttendanceRecord.find(expiredQuery);
+    if (!openRecords || openRecords.length === 0) return 0;
+
+    let closedCount = 0;
+    for (const rec of openRecords) {
+      const autoOutTime = `${rec.date}T23:59:59.000Z`;
+      const inTime = new Date(rec.checkInTime).getTime();
+      const outTime = new Date(autoOutTime).getTime();
+      const durationMinutes = Math.max(0, Math.floor((outTime - inTime) / 60000));
+
+      rec.checkOutTime = autoOutTime;
+      rec.durationMinutes = durationMinutes;
+      rec.completed8Hours = false;
+      rec.autoCheckedOut = true;
+      rec.status = 'checked_out';
+      rec.checkOutNotes = 'انصراف تلقائي إجباري من السيستم (لم يسجل الموظف انصرافه من موقع الفرع قبل 11:59 مساءً)';
+      await rec.save();
+      closedCount++;
+
+      // Create an In-App notification alerting the employee
+      this.createInAppNotification({
+        recipientId: rec.employeeId,
+        title: 'تنبيه انصراف تلقائي ⚠️',
+        body: `تم إغلاق سجل الحضور ليوم (${rec.date}) تلقائياً في 11:59 م لعدم تسجيل الانصراف من داخل الفرع، وتم توثيق عدم تسجيل الخروج يدوياً.`,
+        type: 'auto_checkout',
+        relatedId: rec.id,
+        url: '/?tab=attendance'
+      }).catch(() => {});
+    }
+
+    return closedCount;
+  }
+
+  async updateProfile(employeeId, { name, avatar, weeklyOffDays, jobTitle, branchId }) {
+    await this.ensureConnected();
+    const existingEmp = await Employee.findOne({ id: employeeId });
+    if (!existingEmp) throw new Error("الموظف غير موجود.");
+
+    const updates = {};
+    if (name) updates.name = name.trim();
+    if (avatar) updates.avatar = avatar;
+    if (weeklyOffDays && Array.isArray(weeklyOffDays)) {
+      if (weeklyOffDays.length === 0 || weeklyOffDays.length > 2) {
+        throw new Error("لا يمكن اختيار أكثر من يومين للإجازة الأسبوعية (الحد الأقصى يومان فقط).");
+      }
+      const isSuper = Boolean(existingEmp.isSuperAdmin);
+      if (!isSuper && (existingEmp.weeklyOffDaysLocked || (existingEmp.weeklyOffDays && existingEmp.weeklyOffDays.length > 0))) {
+        throw new Error("عذراً، تم تثبيت أيام إجازتك الأسبوعية رسمياً ولا يمكن تغييرها إلا من قِبل إدارة الشركة أو مدير الفرع.");
+      }
+      updates.weeklyOffDays = weeklyOffDays;
+      updates.weeklyOffDaysLocked = true;
+    }
+    if (jobTitle) {
+      updates.jobTitle = jobTitle;
+    }
+    if (branchId) updates.branchId = branchId;
+
+    await Employee.updateOne({ id: employeeId }, { $set: updates });
+    return this.getEmployeeById(employeeId);
+  }
+
+  async changePassword(employeeId, oldPassword, newPassword) {
+    await this.ensureConnected();
+    const emp = await Employee.findOne({ id: employeeId });
+    if (!emp) throw new Error("الموظف غير موجود.");
+
+    const currentPass = emp.password || emp.pin || "";
+    if (currentPass && currentPass !== oldPassword.trim()) {
+      throw new Error("كلمة المرور الحالية غير صحيحة.");
+    }
+
+    if (!newPassword || newPassword.trim().length < 3) {
+      throw new Error("كلمة المرور الجديدة يجب ألا تقل عن 3 خانات.");
+    }
+
+    emp.password = newPassword.trim();
+    emp.pin = newPassword.trim();
+    await emp.save();
+    return { success: true, message: "تم تغيير كلمة المرور بنجاح!" };
+  }
+
+  async deleteEmployee(employeeId, tenantId = DEFAULT_TENANT_ID, actorContext = null) {
+    await this.ensureConnected();
+    const resolvedTenant = tenantId || DEFAULT_TENANT_ID;
+
+    const emp = await Employee.findOne({ id: employeeId });
+    if (!emp) {
+      throw new Error("الموظف غير موجود.");
+    }
+
+    const isProtected = Boolean(emp.isSuperAdmin || employeeId === 'emp_admin' || (process.env.SEED_ADMIN_PHONE && emp.phone === process.env.SEED_ADMIN_PHONE));
+    if (isProtected) {
+      throw new Error("غير مصرح: لا يمكن حذف حساب الإدارة الرئيسي للنظام (Super Admin).");
+    }
+
+    const empName = emp.name;
+    const oldDetails = {
+      name: emp.name,
+      phone: emp.phone,
+      sapNumber: emp.sapNumber,
+      titleCode: emp.titleCode,
+      branchId: emp.branchId
+    };
+
+    await Employee.deleteOne({ id: employeeId });
+    await AttendanceRecord.deleteMany({ employeeId });
+    await Request.deleteMany({ employeeId });
+    try {
+      await PushSubscription.deleteMany({ employeeId });
+    } catch (e) {}
+
+    logAudit({
+      tenantId: resolvedTenant,
+      actorId: actorContext?.userId,
+      actorName: actorContext?.name,
+      action: 'delete_employee',
+      targetId: employeeId,
+      targetType: 'employee',
+      oldValue: oldDetails,
+      newValue: null
+    });
+
+    return { success: true, message: `تم حذف حساب الموظف "${empName}" وسجلاته نهائياً بنجاح.` };
+  }
+
+  async getTodayAttendance(dateStr = null, branchId = null) {
+    await this.ensureConnected();
+    await this.closeExpiredAttendanceRecords();
+    const today = dateStr || getCairoDateString();
+    const query = { date: today };
+    if (branchId && branchId !== 'all') {
+      query.branchId = branchId;
+    }
+    return AttendanceRecord.find(query).lean();
+  }
+
+  async checkIn(employeeId, latitude, longitude, accuracy = null, tenantId = DEFAULT_TENANT_ID) {
+    await this.ensureConnected();
+    await this.closeExpiredAttendanceRecords();
+
+    // 1. Anti-Cheat: Reject poor GPS accuracy (> 150m)
+    if (accuracy != null && !isNaN(Number(accuracy)) && Number(accuracy) > 150) {
+      const err = new Error(`دقة إشارة الـ GPS غير مقبولة (${Math.round(accuracy)} متر). يرجى التواجد في مكان مفتوح والتأكد من تفعيل دقة الموقع العالية (أقل من 150 م).`);
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const resolvedTenant = tenantId || DEFAULT_TENANT_ID;
+    const today = getCairoDateString();
+    const emp = await this.getEmployeeById(employeeId, resolvedTenant);
+    if (!emp) throw new Error("الموظف غير موجود.");
+
+    // Mandatory SAP enforcement: regular employees cannot check in without SAP number
+    const isSuper = Boolean(emp.isSuperAdmin);
+    if (!isSuper && (!emp.sapNumber || !String(emp.sapNumber).trim())) {
+      throw new Error("عذراً، يجب تسجيل كود الـ SAP الخاص بك أولاً لتتمكن من تسجيل الحضور والانصراف.");
+    }
+
+    const existing = await AttendanceRecord.findOne({ tenantId: resolvedTenant, employeeId, date: today, checkOutTime: null });
+    if (existing) {
+      const conflictErr = new Error("الموظف مسجل حضور بالفعل وموجود في العمل حالياً.");
+      conflictErr.statusCode = 409;
+      throw conflictErr;
+    }
+
+    // Check if employee has an approved work_mission for today
+    const missionReq = await this.getActiveWorkMission(employeeId, today, resolvedTenant);
+
+    const homeBranch = await this.getBranchById(emp.branchId, resolvedTenant);
+    let missionBranch = null;
+    if (missionReq && missionReq.missionBranchId) {
+      missionBranch = await this.getBranchById(missionReq.missionBranchId, resolvedTenant);
+    }
+
+    if (!homeBranch && !missionBranch) {
+      throw new Error("بيانات فرع الحضور غير متوفرة بالنظام.");
+    }
+
+    const lat = parseFloat(latitude);
+    const lon = parseFloat(longitude);
+
+    let chosenBranch = null;
+    let chosenDistance = 0;
+    let isWorkMission = false;
+
+    // Check distance to home branch strictly via server Haversine
+    let distHome = 999999;
+    if (homeBranch) {
+      distHome = calculateDistanceMeters(lat, lon, homeBranch.latitude, homeBranch.longitude);
+      if (distHome <= homeBranch.radiusMeters) {
+        chosenBranch = homeBranch;
+        chosenDistance = distHome;
+      }
+    }
+
+    // Check distance to mission branch (dual geofence enabled)
+    let distMission = 999999;
+    if (missionBranch) {
+      distMission = calculateDistanceMeters(lat, lon, missionBranch.latitude, missionBranch.longitude);
+      if (distMission <= missionBranch.radiusMeters) {
+        chosenBranch = missionBranch;
+        chosenDistance = distMission;
+        isWorkMission = true;
+      }
+    }
+
+    if (!chosenBranch) {
+      if (missionBranch && homeBranch) {
+        throw new Error(
+          `عذراً، أنت خارج النطاق الجغرافي! لديك مأمورية معتمدة: المسافة لفرعك الأساسي (${homeBranch.name}): ${distHome}م (المسموح ${homeBranch.radiusMeters}م)، ولفرع المأمورية (${missionBranch.name}): ${distMission}م (المسموح ${missionBranch.radiusMeters}م). يجب التواجد داخل أحد الفرعين لإثبات الحضور.`
+        );
+      } else {
+        const b = homeBranch || missionBranch;
+        throw new Error(
+          `أنت خارج نطاق فرع (${b.name})! المسافة بينك وبين الفرع ${distHome !== 999999 ? distHome : distMission} متر (المسموح به ${b.radiusMeters} متر فقط).`
+        );
+      }
+    }
+
+    const newRecord = new AttendanceRecord({
+      id: "att_" + Date.now(),
+      tenantId: resolvedTenant,
+      employeeId,
+      userId: employeeId,
+      branchId: chosenBranch.id,
+      date: today,
+      workDate: today,
+      checkInTime: new Date().toISOString(),
+      checkOutTime: null,
+      status: "in_office",
+      latitude: lat,
+      longitude: lon,
+      distanceMeters: chosenDistance,
+      accuracyMeters: accuracy != null ? Number(accuracy) : 0,
+      durationMinutes: 0,
+      completed8Hours: false,
+      autoCheckedOut: false,
+      isWorkMissionCheckIn: isWorkMission
+    });
+
+    try {
+      await newRecord.save();
+    } catch (saveErr) {
+      if (saveErr.code === 11000 || saveErr.message?.includes('E11000')) {
+        const conflictErr = new Error("تم تسجيل حضورك اليوم بالفعل مسبقاً، ولا يمكن تكرار تسجيل الحضور في نفس اليوم.");
+        conflictErr.statusCode = 409;
+        throw conflictErr;
+      }
+      throw saveErr;
+    }
+
+    return newRecord.toObject();
+  }
+
+  async checkOut(employeeId, latitude, longitude, forceOverride = false, reason = "", accuracy = null, tenantId = DEFAULT_TENANT_ID, actorContext = null) {
+    await this.ensureConnected();
+    await this.closeExpiredAttendanceRecords();
+
+    const resolvedTenant = tenantId || DEFAULT_TENANT_ID;
+    const today = getCairoDateString();
+    const record = await AttendanceRecord.findOne({ tenantId: resolvedTenant, employeeId, date: today, checkOutTime: null });
+    if (!record) {
+      throw new Error("لا يوجد تسجيل حضور نشط لهذا الموظف اليوم.");
+    }
+
+    if (latitude == null || longitude == null) {
+      throw new Error("لا يمكن تسجيل الانصراف بدون إرسال إحداثيات موقعك الجغرافي الحقيقي (GPS).");
+    }
+
+    const emp = await this.getEmployeeById(employeeId, resolvedTenant);
+    const missionReq = await this.getActiveWorkMission(employeeId, today, resolvedTenant);
+
+    // Eligible branches for checkout: Check-in branch, Home branch, and Mission branch
+    const eligibleBranchIds = new Set();
+    if (record.branchId) eligibleBranchIds.add(record.branchId);
+    if (emp && emp.branchId) eligibleBranchIds.add(emp.branchId);
+    if (missionReq && missionReq.missionBranchId) eligibleBranchIds.add(missionReq.missionBranchId);
+
+    const lat = parseFloat(latitude);
+    const lon = parseFloat(longitude);
+
+    let matchedBranch = null;
+    let matchedDistance = 0;
+    const branchesChecked = [];
+
+    for (const bId of eligibleBranchIds) {
+      const b = await this.getBranchById(bId, resolvedTenant);
+      if (b) {
+        const d = calculateDistanceMeters(lat, lon, b.latitude, b.longitude);
+        branchesChecked.push({ branch: b, distance: d });
+        if (d <= b.radiusMeters && !matchedBranch) {
+          matchedBranch = b;
+          matchedDistance = d;
+        }
+      }
+    }
+
+    if (!matchedBranch) {
+      if (branchesChecked.length > 1) {
+        const details = branchesChecked.map(bc => `(${bc.branch.name}): ${bc.distance}م (المسموح ${bc.branch.radiusMeters}م)`).join('، ');
+        throw new Error(`عذراً، أنت خارج النطاق الجغرافي للفروع المسموحة لك بالانصراف! المسافات: ${details}. لا يُسمح بتسجيل الانصراف إلا من داخل حدود فرعك أو فرع المأمورية.`);
+      } else if (branchesChecked.length === 1) {
+        const bc = branchesChecked[0];
+        throw new Error(`عذراً، أنت خارج النطاق الجغرافي لفرع (${bc.branch.name}) بمسافة ${bc.distance} متر! (الحد الأقصى المسموح به: ${bc.branch.radiusMeters} متر). لا يُسمح بتسجيل الانصراف إطلاقاً إلا من داخل حدود الفرع.`);
+      } else {
+        throw new Error("تعذر التحقق من فرع الحضور.");
+      }
+    }
+
+    const now = new Date();
+    const checkInTime = new Date(record.checkInTime);
+    const durationMinutes = Math.max(0, Math.floor((now - checkInTime) / 60000));
+    const durationHours = durationMinutes / 60;
+
+    const settings = await this.getOfficeSettings(resolvedTenant);
+    const requiredHours = settings.shiftHours || 8;
+
+    const hasPermission = await Request.findOne({
+      tenantId: resolvedTenant,
+      employeeId,
+      type: "permission",
+      date: today,
+      status: "approved"
+    });
+
+    const effectiveRequiredHours = hasPermission ? Math.max(requiredHours - 2, 0) : requiredHours;
+
+    if (durationHours < effectiveRequiredHours) {
+      const isExecutiveOrManager = ['executive_director', 'area_manager', 'branch_manager'].includes(emp?.titleCode) || Boolean(emp?.isSuperAdmin);
+
+      // Check if employee has an approved early checkout request
+      const approvedEarlyReq = await Request.findOne({
+        tenantId: resolvedTenant,
+        employeeId,
+        type: "early_checkout",
+        date: today,
+        status: "approved"
+      });
+
+      if (!isExecutiveOrManager && !approvedEarlyReq) {
+        const remainingMinutes = Math.ceil(effectiveRequiredHours * 60 - durationMinutes);
+        const remHours = Math.floor(remainingMinutes / 60);
+        const remMins = remainingMinutes % 60;
+        throw new Error(
+          `لا يمكن تسجيل الانصراف قبل إتمام ${effectiveRequiredHours} ساعات عمل (متبقي لديك: ${remHours} ساعة و ${remMins} دقيقة). يتطلب الانصراف المبكر تقديم طلب انصراف طارئ واعتماده من الإدارة المختصة.`
+        );
+      }
+
+      if (approvedEarlyReq) {
+        reason = approvedEarlyReq.reason || reason || "انصراف طارئ معتمد";
+        forceOverride = true;
+      }
+    }
+
+    record.checkOutTime = now.toISOString();
+    record.durationMinutes = durationMinutes;
+    record.completed8Hours = durationHours >= effectiveRequiredHours;
+    record.status = "checked_out";
+    record.checkOutLatitude = latitude;
+    record.checkOutLongitude = longitude;
+    record.checkOutDistanceMeters = matchedDistance;
+    record.checkOutAccuracyMeters = accuracy != null ? Number(accuracy) : 0;
+    record.checkOutNotes = forceOverride ? `انصراف استثنائي / مبكر: ${reason}` : "انصراف نظامي بعد إتمام ساعات العمل";
+    if (forceOverride && reason) {
+      record.earlyCheckoutReason = reason;
+    }
+
+    await record.save();
+
+    if (forceOverride) {
+      logAudit({
+        tenantId: resolvedTenant,
+        actorId: actorContext?.userId || employeeId,
+        actorName: actorContext?.name || emp?.name || '',
+        action: 'early_checkout_override',
+        targetId: employeeId,
+        targetType: 'attendance',
+        oldValue: null,
+        newValue: { reason, durationMinutes, completed8Hours: record.completed8Hours }
+      });
+    }
+
+    return record.toObject();
+  }
+
+  async getLiveOfficeStatus(dateStr, branchId = null) {
+    await this.ensureConnected();
+    const today = dateStr || new Date().toISOString().split('T')[0];
+    let employees = await this.getEmployees(branchId);
+
+    const todayAttendance = await this.getTodayAttendance(today, branchId);
+    const todayRequests = await Request.find({
+      status: "approved",
+      $or: [
+        { date: today },
+        { startDate: { $lte: today }, endDate: { $gte: today } }
+      ]
+    }).lean();
+
+    const dateObj = new Date(today);
+    const dayKey = DAY_MAP[dateObj.getDay()];
+
+    const result = {
+      filterBranchId: branchId || 'all',
+      summary: {
+        totalEmployees: employees.length,
+        inOfficeCount: 0,
+        onLeaveCount: 0,
+        onPermissionCount: 0,
+        absentCount: 0
+      },
+      inOffice: [],
+      onPermission: [],
+      onLeave: {
+        weekly_off: [],
+        sick: [],
+        travel: [],
+        annual: [],
+        casual: [],
+        work_mission: [],
+        weekly_rest_compensation: [],
+        holiday_compensation: [],
+        other: []
+      },
+      absent: []
+    };
+
+    employees.forEach(emp => {
+      const attendance = todayAttendance.find(a => a.employeeId === emp.id && !a.checkOutTime);
+      if (attendance) {
+        result.summary.inOfficeCount++;
+        result.inOffice.push({
+          employee: emp,
+          attendance,
+          checkInTime: attendance.checkInTime,
+          durationMinutes: attendance.durationMinutes
+        });
+        return;
+      }
+
+      const permission = todayRequests.find(r => r.employeeId === emp.id && r.type === "permission");
+      if (permission) {
+        result.summary.onPermissionCount++;
+        result.onPermission.push({ employee: emp, permission });
+        return;
+      }
+
+      const leave = todayRequests.find(r => r.employeeId === emp.id && r.type === "leave");
+      if (leave) {
+        result.summary.onLeaveCount++;
+        const cat = leave.leaveType || 'other';
+        if (result.onLeave[cat]) {
+          result.onLeave[cat].push({ employee: emp, leave });
+        } else {
+          result.onLeave.other.push({ employee: emp, leave });
+        }
+        return;
+      }
+
+      if (emp.weeklyOffDays && emp.weeklyOffDays.includes(dayKey)) {
+        result.summary.onLeaveCount++;
+        result.onLeave.weekly_off.push({
+          employee: emp,
+          leave: {
+            reason: "يوم عطلة أسبوعية مجدول للموظف",
+            leaveType: "weekly_off"
+          }
+        });
+        return;
+      }
+
+      result.summary.absentCount++;
+      result.absent.push({
+        ...emp,
+        employee: emp
+      });
+    });
+
+    return result;
+  }
+
+  async getRequests(filters = {}) {
+    await this.ensureConnected();
+    const query = {};
+    if (filters.employeeId) query.employeeId = filters.employeeId;
+    if (filters.type) query.type = filters.type;
+    if (filters.status) query.status = filters.status;
+
+    let list = await Request.find(query).sort({ requestedAt: -1 }).lean();
+
+    if (filters.branchId && filters.branchId !== 'all') {
+      let bQuery = {};
+      if (Array.isArray(filters.branchId)) {
+        bQuery = { branchId: { $in: filters.branchId } };
+      } else if (filters.branchId.includes(',')) {
+        bQuery = { branchId: { $in: filters.branchId.split(',') } };
+      } else {
+        bQuery = { branchId: filters.branchId };
+      }
+      const branchEmployees = await Employee.find(bQuery, { id: 1 }).lean();
+      const branchEmpIds = new Set(branchEmployees.map(e => e.id));
+      list = list.filter(r => branchEmpIds.has(r.employeeId));
+    }
+
+    const employees = await Employee.find().lean();
+    const branches = await Branch.find().lean();
+
+    return list.map(req => {
+      const emp = employees.find(e => e.id === req.employeeId);
+      const branch = emp ? branches.find(b => b.id === emp.branchId) : null;
+      return {
+        ...req,
+        employeeName: emp ? emp.name : "موظف غير معروف",
+        employeeJobTitle: emp ? emp.jobTitle : "",
+        employeeTitleCode: emp ? emp.titleCode : "",
+        employeeBranch: branch ? branch.name : "",
+        employeeAvatar: emp ? emp.avatar : ""
+      };
+    });
+  }
+
+  async createRequest(requestData) {
+    await this.ensureConnected();
+
+    const emp = await Employee.findOne({ id: requestData.employeeId }).lean();
+    if (emp && emp.branchId) {
+      requestData.branchId = emp.branchId;
+    }
+
+    if (requestData.type === 'leave' && requestData.leaveType === 'work_mission') {
+      if (!requestData.missionBranchId) {
+        throw new Error("يرجى تحديد الفرع المتوجه إليه في مأمورية العمل.");
+      }
+      if (emp && emp.branchId && requestData.missionBranchId === emp.branchId) {
+        throw new Error("لا يمكن تقديم مأمورية عمل على نفس فرع العمل الأساسي الخاص بك.");
+      }
+    }
+
+    // Validation: Prevent taking leave on employee's weekly off days (exempting work_mission, weekly_rest_compensation, holiday_compensation)
+    if (requestData.type === 'leave' && !['work_mission', 'weekly_rest_compensation', 'holiday_compensation'].includes(requestData.leaveType)) {
+      const empOffDays = (emp && emp.weeklyOffDays) || ['friday', 'saturday'];
+      const startDateStr = requestData.startDate || requestData.date;
+      const endDateStr = requestData.endDate || startDateStr;
+
+      if (startDateStr) {
+        const DAY_INDEX_TO_ID = {
+          0: 'sunday', 1: 'monday', 2: 'tuesday', 3: 'wednesday', 4: 'thursday', 5: 'friday', 6: 'saturday'
+        };
+        const DAY_NAMES_AR = {
+          sunday: 'الأحد', monday: 'الإثنين', tuesday: 'الثلاثاء', wednesday: 'الأربعاء', thursday: 'الخميس', friday: 'الجمعة', saturday: 'السبت'
+        };
+
+        const parseDay = (dStr) => {
+          const parts = dStr.split('-').map(Number);
+          const d = new Date(parts[0], parts[1] - 1, parts[2], 12, 0, 0);
+          return DAY_INDEX_TO_ID[d.getDay()];
+        };
+
+        if (startDateStr === endDateStr) {
+          const dayId = parseDay(startDateStr);
+          if (empOffDays.includes(dayId)) {
+            const dayName = DAY_NAMES_AR[dayId] || dayId;
+            throw new Error(`عذراً، يوم (${dayName}) يوافق يوم إجازتك الأسبوعية بالفعل، لا يمكنك تقديم طلب إجازة فيه.`);
+          }
+        } else {
+          const startDayId = parseDay(startDateStr);
+          const endDayId = parseDay(endDateStr);
+          if (empOffDays.includes(startDayId)) {
+            const startName = DAY_NAMES_AR[startDayId] || startDayId;
+            throw new Error(`عذراً، تاريخ بداية الإجازة يوافق يوم إجازتك الأسبوعية (${startName}). يرجى تحديد البداية من يوم عمل فعلي.`);
+          }
+          if (empOffDays.includes(endDayId)) {
+            const endName = DAY_NAMES_AR[endDayId] || endDayId;
+            throw new Error(`عذراً، تاريخ نهاية الإجازة يوافق يوم إجازتك الأسبوعية (${endName}). يرجى تحديد النهاية بيوم عمل فعلي.`);
+          }
+        }
+      }
+    }
+
+    if (requestData.type === 'early_checkout') {
+      const today = requestData.date || new Date().toISOString().split('T')[0];
+      requestData.date = today;
+
+      const activeRecord = await AttendanceRecord.findOne({
+        employeeId: requestData.employeeId,
+        date: today,
+        checkOutTime: null
+      });
+      if (!activeRecord) {
+        throw new Error("لا يمكن تقديم طلب انصراف طارئ لعدم وجود تسجيل حضور نشط اليوم.");
+      }
+
+      const existingPending = await Request.findOne({
+        employeeId: requestData.employeeId,
+        type: 'early_checkout',
+        date: today,
+        status: 'pending'
+      });
+      if (existingPending) {
+        throw new Error("لديك بالفعل طلب انصراف طارئ قيد المراجعة حالياً من الإدارة المختصة.");
+      }
+    }
+
+    // Validation: 2-Hour Permission cannot be taken on weekly off days or days with approved leaves
+    if (requestData.type === 'permission') {
+      const permDate = requestData.date;
+      if (!permDate) {
+        throw new Error("تاريخ الإذن مطلوب.");
+      }
+
+      // Check weekly off days
+      const empOffDays = (emp && emp.weeklyOffDays) || ['friday', 'saturday'];
+      const DAY_INDEX_TO_ID = {
+        0: 'sunday', 1: 'monday', 2: 'tuesday', 3: 'wednesday', 4: 'thursday', 5: 'friday', 6: 'saturday'
+      };
+      const DAY_NAMES_AR = {
+        sunday: 'الأحد', monday: 'الإثنين', tuesday: 'الثلاثاء', wednesday: 'الأربعاء', thursday: 'الخميس', friday: 'الجمعة', saturday: 'السبت'
+      };
+      const parts = permDate.split('-').map(Number);
+      const d = new Date(parts[0], parts[1] - 1, parts[2], 12, 0, 0);
+      const dayId = DAY_INDEX_TO_ID[d.getDay()];
+
+      if (empOffDays.includes(dayId)) {
+        const dayName = DAY_NAMES_AR[dayId] || dayId;
+        throw new Error(`عذراً، يوم (${dayName} ${permDate}) يوافق يوم إجازتك الأسبوعية. لا يمكن تقديم طلب إذن ساعتين في أيام الإجازات.`);
+      }
+
+      // Check approved leaves on this date
+      const existingLeave = await Request.findOne({
+        employeeId: requestData.employeeId,
+        type: 'leave',
+        status: 'approved',
+        $or: [
+          { date: permDate },
+          { missionDate: permDate },
+          { startDate: { $lte: permDate }, endDate: { $gte: permDate } }
+        ]
+      }).lean();
+
+      if (existingLeave) {
+        const leaveNames = {
+          annual: 'إجازة سنوية',
+          sick: 'إجازة مرضية',
+          casual: 'إجازة عارضة',
+          work_mission: 'مأمورية عمل',
+          weekly_rest_compensation: 'بدل راحة أسبوعية',
+          holiday_compensation: 'بدل إجازة عيد'
+        };
+        const lName = leaveNames[existingLeave.leaveType] || 'إجازة معتمدة';
+        throw new Error(`عذراً، لديك (${lName}) معتمدة بالفعل في هذا التاريخ (${permDate}). لا يمكن تقديم إذن ساعتين في أيام الإجازات.`);
+      }
+
+      // Check duplicate permission on this date
+      const existingPerm = await Request.findOne({
+        employeeId: requestData.employeeId,
+        type: 'permission',
+        date: permDate,
+        status: { $in: ['pending', 'approved'] }
+      }).lean();
+
+      if (existingPerm) {
+        throw new Error(`لديك بالفعل طلب إذن ساعتين (${existingPerm.status === 'approved' ? 'معتمد' : 'قيد المراجعة'}) لنفس هذا اليوم (${permDate}).`);
+      }
+    }
+
+    const newReq = new Request({
+      id: "req_" + Date.now(),
+      status: "pending",
+      requestedAt: new Date().toISOString(),
+      reviewedBy: null,
+      reviewedAt: null,
+      reviewNote: null,
+      ...requestData
+    });
+    await newReq.save();
+
+    // Send background push notification to managers even when phone/app is closed
+    try {
+      const empName = emp ? emp.name : 'موظف';
+      let title = `طلب جديد: ${empName}`;
+      let body = '';
+
+      if (requestData.type === 'early_checkout') {
+        body = `طلب انصراف طارئ جديد يحتاج إلى موافقة.`;
+      } else if (requestData.type === 'permission') {
+        const pType = requestData.permissionType === 'morning' ? 'إذن تأخير صباحي' : 'إذن انصراف مبكر';
+        body = `طلب ${pType} (${requestData.permissionHours || 2} س) - سبب: ${requestData.reason || ''}`;
+      } else {
+        const leaveNames = {
+          annual: 'إجازة سنوية',
+          sick: 'إجازة مرضية',
+          casual: 'إجازة عارضة',
+          work_mission: `مأمورية عمل بفرع ${requestData.missionBranchName || ''}`,
+          weekly_rest_compensation: 'بدل راحة أسبوعية',
+          holiday_compensation: `بدل إجازة عيد (${requestData.holidayName || ''})`
+        };
+        const lName = leaveNames[requestData.leaveType] || 'إجازة';
+        body = `طلب ${lName} - سبب: ${requestData.reason || ''}`;
+      }
+
+      let targetEmpIds = [];
+      const requesterTitle = emp?.titleCode;
+
+      if (requesterTitle === 'area_manager') {
+        // Area Manager's requests go directly to Executive Director
+        const execs = await Employee.find({
+          $or: [
+            { titleCode: 'executive_director' },
+            { isSuperAdmin: true }
+          ]
+        }, { id: 1 }).lean();
+        targetEmpIds = execs.map(e => e.id);
+      } else if (['branch_manager'].includes(requesterTitle)) {
+        // Branch leadership requests go directly to their Sector's Area Manager
+        let branchSectorId = emp?.sectorId;
+        if (!branchSectorId && emp?.branchId) {
+          const bDoc = await Branch.findOne({ id: emp.branchId }).lean();
+          if (bDoc) branchSectorId = bDoc.sectorId;
+        }
+        let areaManagers = [];
+        if (branchSectorId) {
+          areaManagers = await Employee.find({
+            sectorId: branchSectorId,
+            titleCode: 'area_manager'
+          }, { id: 1 }).lean();
+        }
+        if (areaManagers.length > 0) {
+          targetEmpIds = areaManagers.map(e => e.id);
+        } else {
+          // Fallback to Executive Director
+          const execs = await Employee.find({
+            $or: [
+              { titleCode: 'executive_director' },
+              { isSuperAdmin: true }
+            ]
+          }, { id: 1 }).lean();
+          targetEmpIds = execs.map(e => e.id);
+        }
+      } else {
+        // Regular branch employee request:
+        // 1. Try to find branch_manager in this branch
+        let branchManagers = [];
+        if (emp?.branchId) {
+          branchManagers = await Employee.find({
+            branchId: emp.branchId,
+            titleCode: 'branch_manager'
+          }, { id: 1 }).lean();
+        }
+
+        if (branchManagers.length > 0) {
+          targetEmpIds = branchManagers.map(e => e.id);
+        } else {
+          // If branch does not have branch_manager, send to the Area Manager responsible for this branch
+          let branchSectorId = emp?.sectorId;
+          if (!branchSectorId && emp?.branchId) {
+            const bDoc = await Branch.findOne({ id: emp.branchId }).lean();
+            if (bDoc) branchSectorId = bDoc.sectorId;
+          }
+          let areaManagers = [];
+          if (branchSectorId) {
+            areaManagers = await Employee.find({
+              sectorId: branchSectorId,
+              titleCode: 'area_manager'
+            }, { id: 1 }).lean();
+          }
+          if (areaManagers.length > 0) {
+            targetEmpIds = areaManagers.map(e => e.id);
+          } else {
+            // Fallback to Executive Director
+            const execs = await Employee.find({
+              $or: [
+                { titleCode: 'executive_director' },
+                { isSuperAdmin: true }
+              ]
+            }, { id: 1 }).lean();
+            targetEmpIds = execs.map(e => e.id);
+          }
+        }
+      }
+
+      targetEmpIds = [...new Set(targetEmpIds.filter(id => id && id !== requestData.employeeId))];
+
+      for (const mgrId of targetEmpIds) {
+        // 1. In-App Notification
+        this.createInAppNotification({
+          recipientId: mgrId,
+          title,
+          body,
+          type: 'request_created',
+          relatedId: newReq.id,
+          url: '/?tab=leaves'
+        }).catch(() => {});
+
+        // 2. Web Push Notification
+        this.sendPushNotification(mgrId, {
+          title,
+          body,
+          icon: '/icon-192.png',
+          url: '/?tab=leaves'
+        }).catch(() => {});
+      }
+    } catch (pushErr) {
+      console.warn("Notification error on createRequest:", pushErr.message);
+    }
+
+    return newReq.toObject();
+  }
+
+  async reviewRequest(requestId, reviewerId, status, reviewNote, actorContext = null) {
+    await this.ensureConnected();
+    const req = await Request.findOne({ id: requestId });
+    if (!req) return null;
+
+    req.status = status;
+    req.reviewedBy = reviewerId;
+    req.reviewedAt = new Date().toISOString();
+    req.reviewNote = reviewNote || (status === 'approved' ? 'تمت الموافقة' : 'تم الرفض');
+
+    if (status === 'approved' && req.type === 'leave') {
+      const nonDeductible = ['work_mission', 'weekly_rest_compensation', 'holiday_compensation', 'weekly_off'];
+      if (!nonDeductible.includes(req.leaveType)) {
+        const emp = await Employee.findOne({ id: req.employeeId });
+        if (emp && emp.leaveBalance > 0) {
+          let daysToDeduct = 1;
+          if (req.startDate && req.endDate) {
+            const d1 = new Date(req.startDate);
+            const d2 = new Date(req.endDate);
+            const diffTime = d2.getTime() - d1.getTime();
+            const diffDays = Math.round(diffTime / (1000 * 3600 * 24)) + 1;
+            if (diffDays > 0) daysToDeduct = diffDays;
+          }
+          emp.leaveBalance = Math.max(0, emp.leaveBalance - daysToDeduct);
+          await emp.save();
+        }
+      }
+    }
+
+    if (status === 'approved' && req.type === 'permission') {
+      const emp = await Employee.findOne({ id: req.employeeId });
+      if (emp && emp.permissionsBalanceHours >= (req.permissionHours || 2)) {
+        emp.permissionsBalanceHours = Math.max(0, emp.permissionsBalanceHours - (req.permissionHours || 2));
+        await emp.save();
+      }
+    }
+
+    if (req.type === 'early_checkout') {
+      const reviewer = await Employee.findOne({ id: reviewerId }).lean();
+      const canApproveEarly = ['executive_director', 'area_manager', 'branch_manager'].includes(reviewer?.titleCode) || Boolean(reviewer?.isSuperAdmin);
+      if (!canApproveEarly) {
+        throw new Error("عفواً، اعتماد طلبات الانصراف الطارئ صلاحية حصرية لمدير الفرع والإدارة العليا.");
+      }
+
+      if (status === 'approved') {
+        const today = req.date || new Date().toISOString().split('T')[0];
+        const activeRecord = await AttendanceRecord.findOne({
+          employeeId: req.employeeId,
+          date: today,
+          checkOutTime: null
+        });
+
+        if (activeRecord) {
+          const now = new Date();
+          const checkInTime = new Date(activeRecord.checkInTime);
+          const durationMinutes = Math.max(0, Math.floor((now - checkInTime) / 60000));
+          activeRecord.checkOutTime = now.toISOString();
+          activeRecord.durationMinutes = durationMinutes;
+          activeRecord.completed8Hours = false;
+          activeRecord.status = "checked_out";
+          activeRecord.checkOutNotes = `انصراف طارئ معتمد: ${req.reason}`;
+          activeRecord.earlyCheckoutReason = req.reason;
+          await activeRecord.save();
+        }
+      }
+    }
+
+    await req.save();
+
+    logAudit({
+      tenantId: req.tenantId || DEFAULT_TENANT_ID,
+      actorId: reviewerId,
+      actorName: actorContext?.name || '',
+      action: status === 'approved' ? 'approve_request' : 'reject_request',
+      targetId: requestId,
+      targetType: 'request',
+      oldValue: { status: 'pending' },
+      newValue: { status, reviewNote: req.reviewNote }
+    });
+
+    // Send background push notification & in-app notification to the employee
+    try {
+      const isApproved = status === 'approved';
+      const statusTitle = isApproved ? 'تمت الموافقة على طلبك ✅' : 'تم رفض طلبك ❌';
+      let reqTypeText = 'الطلب';
+      if (req.type === 'early_checkout') reqTypeText = 'الانصراف الطارئ';
+      else if (req.type === 'permission') reqTypeText = 'إذن العمل';
+      else reqTypeText = 'الإجازة';
+
+      const bodyText = `تم الرد على طلب (${reqTypeText}) الخاص بك. ${reviewNote ? 'ملاحظة الإدارة: ' + reviewNote : ''}`;
+
+      // 1. In-App Notification
+      this.createInAppNotification({
+        recipientId: req.employeeId,
+        title: statusTitle,
+        body: bodyText,
+        type: 'request_reviewed',
+        relatedId: req.id,
+        url: '/?tab=leaves'
+      }).catch(() => {});
+
+      // 2. Web Push Notification
+      this.sendPushNotification(req.employeeId, {
+        title: statusTitle,
+        body: bodyText,
+        icon: '/icon-192.png',
+        url: '/?tab=leaves'
+      }).catch(() => {});
+    } catch (pushErr) {
+      console.warn("Push error on reviewRequest:", pushErr.message);
+    }
+
+    return req.toObject();
+  }
+
+  async getMonthlyReport({ year, month, branchId = null, employeeId = null }) {
+    await this.ensureConnected();
+    await this.closeExpiredAttendanceRecords();
+    const targetYear = parseInt(year, 10) || new Date().getFullYear();
+    const targetMonth = parseInt(month, 10) || (new Date().getMonth() + 1);
+    const monthStr = `${targetYear}-${String(targetMonth).padStart(2, '0')}`;
+    const daysInMonth = new Date(targetYear, targetMonth, 0).getDate();
+    const todayStr = getCairoDateString();
+
+    let employees = await this.getEmployees(branchId);
+    if (employeeId && employeeId !== 'all') {
+      employees = employees.filter(e => e.id === employeeId);
+    }
+
+    const attQuery = { date: { $regex: `^${monthStr}` } };
+    if (branchId && branchId !== 'all') {
+      if (Array.isArray(branchId)) {
+        attQuery.branchId = { $in: branchId };
+      } else if (branchId.includes(',')) {
+        attQuery.branchId = { $in: branchId.split(',') };
+      } else {
+        attQuery.branchId = branchId;
+      }
+    }
+    if (employeeId && employeeId !== 'all') attQuery.employeeId = employeeId;
+    const attendance = await AttendanceRecord.find(attQuery).lean();
+
+    const reqQuery = {
+      status: 'approved',
+      $or: [
+        { date: { $regex: `^${monthStr}` } },
+        { startDate: { $regex: `^${monthStr}` } }
+      ]
+    };
+    if (employeeId && employeeId !== 'all') reqQuery.employeeId = employeeId;
+    const requests = await Request.find(reqQuery).lean();
+
+    const branches = await Branch.find().lean();
+
+    const enrichedAttendance = attendance
+      .filter(r => employees.some(e => e.id === r.employeeId))
+      .map(r => {
+        const emp = employees.find(e => e.id === r.employeeId);
+        const branch = branches.find(b => b.id === r.branchId);
+        return {
+          ...r,
+          employeeName: emp ? emp.name : 'موظف',
+          jobTitle: emp ? emp.jobTitle : '',
+          avatar: emp ? emp.avatar : '',
+          branchName: branch ? branch.name : ''
+        };
+      }).sort((a, b) => b.date.localeCompare(a.date));
+
+    const enrichedRequests = requests
+      .filter(r => employees.some(e => e.id === r.employeeId))
+      .map(r => {
+        const emp = employees.find(e => e.id === r.employeeId);
+        const branch = emp ? branches.find(b => b.id === emp.branchId) : null;
+        return {
+          ...r,
+          employeeName: emp ? emp.name : 'موظف',
+          jobTitle: emp ? emp.jobTitle : '',
+          avatar: emp ? emp.avatar : '',
+          branchName: branch ? branch.name : ''
+        };
+      }).sort((a, b) => (b.date || b.startDate).localeCompare(a.date || a.startDate));
+
+    const employeeSummaries = employees.map(emp => {
+      const empBranch = branches.find(b => b.id === emp.branchId);
+      const empAtt = attendance.filter(r => r.employeeId === emp.id);
+      const empReq = requests.filter(r => r.employeeId === emp.id);
+
+      let totalMinutes = 0;
+      let presentDays = 0;
+      let leavesCount = 0;
+      let permissionsHours = 0;
+
+      empAtt.forEach(r => {
+        presentDays++;
+        totalMinutes += (r.durationMinutes || 0);
+      });
+
+      empReq.forEach(r => {
+        if (r.type === 'leave') {
+          leavesCount++;
+        } else if (r.type === 'permission') {
+          permissionsHours += (r.permissionHours || 2);
+        }
+      });
+
+      const totalHours = (totalMinutes / 60).toFixed(1);
+
+      const dailyBreakdown = [];
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dStr = `${monthStr}-${String(day).padStart(2, '0')}`;
+        const dayDate = new Date(`${dStr}T12:00:00Z`);
+        const dayOfWeekIndex = dayDate.getUTCDay();
+        const dayKey = DAY_MAP[dayOfWeekIndex];
+        const isFuture = dStr > todayStr;
+
+        const dayAtt = empAtt.find(r => r.date === dStr);
+        const dayLeave = empReq.find(r => r.type === 'leave' && dStr >= r.startDate && dStr <= r.endDate);
+        const dayPerm = empReq.find(r => r.type === 'permission' && r.date === dStr);
+        const isWeeklyOff = emp.weeklyOffDays && emp.weeklyOffDays.includes(dayKey);
+
+        let status = 'absent';
+        let label = 'غائب';
+        let detail = '';
+
+        if (isFuture) {
+          status = 'future';
+          label = 'قادم';
+        } else if (dayAtt) {
+          status = 'present';
+          const hrs = (dayAtt.durationMinutes ? (dayAtt.durationMinutes / 60).toFixed(1) : 0);
+          const inTime = dayAtt.checkInTime ? new Date(dayAtt.checkInTime).toLocaleTimeString('ar-EG', { timeZone: 'Africa/Cairo', hour: '2-digit', minute: '2-digit' }) : '';
+          const outTime = dayAtt.checkOutTime ? new Date(dayAtt.checkOutTime).toLocaleTimeString('ar-EG', { timeZone: 'Africa/Cairo', hour: '2-digit', minute: '2-digit' }) : 'في العمل';
+          if (dayAtt.autoCheckedOut) {
+            label = `انصراف تلقائي (${hrs}س)`;
+            detail = `${inTime} - انصراف إجباري 11:59م (لم يبصم خروج)`;
+          } else {
+            label = `حاضر (${hrs}س)`;
+            detail = `${inTime} - ${outTime}`;
+          }
+        } else if (dayLeave) {
+          status = 'leave';
+          label = dayLeave.leaveType === 'sick' ? 'مرضي' : (dayLeave.leaveType === 'travel' ? 'سفر' : (dayLeave.leaveType === 'annual' ? 'سنوي' : 'إجازة'));
+          detail = dayLeave.reason || '';
+        } else if (dayPerm) {
+          status = 'permission';
+          label = 'إذن ساعتين';
+          detail = `${dayPerm.startTime} - ${dayPerm.endTime}`;
+        } else if (isWeeklyOff) {
+          status = 'weekly_off';
+          label = 'عطلة أسبوعية';
+        }
+
+        dailyBreakdown.push({
+          day,
+          date: dStr,
+          dayKey,
+          status,
+          label,
+          detail,
+          att: dayAtt || null,
+          leave: dayLeave || null,
+          perm: dayPerm || null
+        });
+      }
+
+      return {
+        employee: {
+          id: emp.id,
+          name: emp.name,
+          jobTitle: emp.jobTitle,
+          branchName: empBranch ? empBranch.name : '',
+          avatar: emp.avatar,
+          phone: emp.phone,
+          weeklyOffDays: emp.weeklyOffDays
+        },
+        presentDays,
+        totalMinutes,
+        totalHours,
+        leavesCount,
+        permissionsHours,
+        dailyBreakdown
+      };
+    });
+
+    const monthNamesAr = [
+      'يناير', 'فبراير', 'مارس', 'إبريل', 'مايو', 'يونيو',
+      'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'
+    ];
+    const monthLabel = `${monthNamesAr[targetMonth - 1]} ${targetYear}`;
+
+    return {
+      year: targetYear,
+      month: targetMonth,
+      monthStr,
+      monthLabel,
+      daysInMonth,
+      attendance: enrichedAttendance,
+      requests: enrichedRequests,
+      employeeSummaries
+    };
+  }
+}
+
+module.exports = {
+  connectToMongo,
+  MongoDatabaseAdapter,
+  calculateDistanceMeters,
+  DAY_MAP,
+  DEFAULT_SECTORS,
+  DEFAULT_BRANCHES,
+  DEFAULT_TITLES
+};

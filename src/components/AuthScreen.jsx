@@ -1,0 +1,1029 @@
+import React, { useState } from 'react';
+import { 
+  Building2, 
+  LogIn, 
+  UserPlus, 
+  Camera, 
+  Image as ImageIcon,
+  Phone, 
+  Lock, 
+  User, 
+  Briefcase, 
+  Calendar, 
+  MapPin,
+  Check, 
+  AlertCircle, 
+  CheckCircle2, 
+  Eye,
+  EyeOff,
+  Sparkles,
+  Loader2,
+  Download,
+  Smartphone,
+  X,
+  Sun,
+  Moon,
+  ScanFace,
+  Fingerprint
+} from 'lucide-react';
+import { api } from '../api';
+import { compressImage } from '../utils/imageCompressor';
+import { ImageCropperModal } from './ImageCropperModal';
+import { checkIsInstalledApp } from '../utils/appEnvironment';
+import { DEFAULT_SECTORS } from '../utils/userScope';
+import { getInitialTheme, applyTheme } from '../utils/themeHelper';
+import { checkBiometricSupport, authenticateWithBiometrics } from '../utils/biometricHelper';
+import { companyConfig } from '../config/company.config';
+
+const DAYS_OF_WEEK = [
+  { id: 'friday', name: 'الجمعة' },
+  { id: 'saturday', name: 'السبت' },
+  { id: 'sunday', name: 'الأحد' },
+  { id: 'monday', name: 'الإثنين' },
+  { id: 'tuesday', name: 'الثلاثاء' },
+  { id: 'wednesday', name: 'الأربعاء' },
+  { id: 'thursday', name: 'الخميس' }
+];
+
+// Default clean avatars
+const DEFAULT_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23F5B800'><path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z'/></svg>";
+
+export function AuthScreen({ titles, branches, officeSettings, onAuthSuccess }) {
+  const [isInstalledApp, setIsInstalledApp] = useState(() => checkIsInstalledApp());
+  const [webBypass, setWebBypass] = useState(false);
+  const [authMode, setAuthMode] = useState('login'); // 'login' | 'register'
+  const [loading, setLoading] = useState(false);
+  const [showInstallModal, setShowInstallModal] = useState(false);
+  const [installPrompt, setInstallPrompt] = useState(null);
+  const [photoCompressing, setPhotoCompressing] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+
+  // Theme state: 'dark' | 'light'
+  const [theme, setTheme] = useState(() => getInitialTheme());
+
+  const toggleTheme = () => {
+    const next = theme === 'dark' ? 'light' : 'dark';
+    setTheme(next);
+    applyTheme(next);
+  };
+
+  // Biometrics (Face ID & Touch ID) state
+  const [biometricsAvailable, setBiometricsAvailable] = useState(false);
+  const [biometricLoading, setBiometricLoading] = useState(false);
+
+  React.useEffect(() => {
+    checkBiometricSupport().then(setBiometricsAvailable).catch(() => setBiometricsAvailable(false));
+  }, []);
+
+  const handleBiometricLogin = async () => {
+    setErrorMsg('');
+    setSuccessMsg('');
+    setBiometricLoading(true);
+    try {
+      const res = await authenticateWithBiometrics(loginPhone.trim());
+      if (res.success && res.employee) {
+        setSuccessMsg(res.message || 'تم التحقق من البصمة بنجاح!');
+        localStorage.setItem('office_auth_user', JSON.stringify(res.employee));
+        setTimeout(() => {
+          onAuthSuccess(res.employee);
+        }, 500);
+      } else {
+        setErrorMsg(res.error || 'فشل التحقق من البصمة');
+      }
+    } catch (err) {
+      setErrorMsg(err.message || 'فشل تسجيل الدخول بالبصمة');
+    } finally {
+      setBiometricLoading(false);
+    }
+  };
+
+  // Handle native PWA install prompt
+  React.useEffect(() => {
+    const handleBeforeInstall = (e) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+  }, []);
+
+  const handleTriggerNativeInstall = async () => {
+    if (installPrompt) {
+      installPrompt.prompt();
+      const choice = await installPrompt.userChoice;
+      if (choice.outcome === 'accepted') {
+        setInstallPrompt(null);
+        setShowInstallModal(false);
+      }
+    }
+  };
+
+  // Login Form
+  const [loginPhone, setLoginPhone] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+
+  // Register Form
+  const [regName, setRegName] = useState('');
+  const [regPhone, setRegPhone] = useState('');
+  const [regSapNumber, setRegSapNumber] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+  const [regConfirmPassword, setRegConfirmPassword] = useState('');
+  const [showRegPassword, setShowRegPassword] = useState(false);
+  const [regTitleCode, setRegTitleCode] = useState(titles && titles[titles.length - 1] ? titles[titles.length - 1].code : 'memberships_specialist');
+  const [regSectorId, setRegSectorId] = useState(DEFAULT_SECTORS[0].id);
+  const [regBranchId, setRegBranchId] = useState(branches && branches[0] ? branches[0].id : 'branch_october2');
+  const [regWeeklyOff, setRegWeeklyOff] = useState(['friday', 'saturday']);
+  const [regAvatar, setRegAvatar] = useState('');
+  const [avatarPreview, setAvatarPreview] = useState('');
+  const [rawCropperImage, setRawCropperImage] = useState(null);
+
+  // Handle Photo Picker & Open Interactive Cropper
+  const handlePhotoUpload = (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+
+    setErrorMsg('');
+    const reader = new FileReader();
+    reader.onload = (loadEvent) => {
+      setRawCropperImage(loadEvent.target.result);
+    };
+    reader.onerror = () => {
+      setErrorMsg('تعذر قراءة ملف الصورة المختارة.');
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const handleCropComplete = (croppedDataUrl) => {
+    setRegAvatar(croppedDataUrl);
+    setAvatarPreview(croppedDataUrl);
+    setRawCropperImage(null);
+  };
+
+  const handleCropCancel = () => {
+    setRawCropperImage(null);
+  };
+
+  const toggleWeeklyOffDay = (dayId) => {
+    if (regWeeklyOff.includes(dayId)) {
+      if (regWeeklyOff.length === 1) {
+        setErrorMsg('يجب اختيار يوم إجازة واحد على الأقل.');
+        return;
+      }
+      setErrorMsg('');
+      setRegWeeklyOff(regWeeklyOff.filter(d => d !== dayId));
+    } else {
+      if (regWeeklyOff.length >= 2) {
+        setErrorMsg('الحد الأقصى للإجازة الأسبوعية هو يومان فقط في الأسبوع.');
+        return;
+      }
+      setErrorMsg('');
+      setRegWeeklyOff([...regWeeklyOff, dayId]);
+    }
+  };
+
+  // Login Handler
+  const handleLoginSubmit = async (e) => {
+    e.preventDefault();
+    if (!loginPhone.trim()) {
+      setErrorMsg('يرجى إدخال رقم الهاتف أو كود الـ SAP.');
+      return;
+    }
+    if (!loginPassword.trim()) {
+      setErrorMsg('يرجى كتابة كلمة المرور.');
+      return;
+    }
+
+    setLoading(true);
+    setErrorMsg('');
+
+    try {
+      const res = await api.login(loginPhone.trim(), loginPassword.trim());
+      if (res.success) {
+        localStorage.setItem('office_auth_user', JSON.stringify(res.employee));
+        onAuthSuccess(res.employee);
+      } else {
+        setErrorMsg(res.error || 'فشل تسجيل الدخول، تأكد من صحة رقم الهاتف أو كود SAP وكلمة المرور.');
+      }
+    } catch (err) {
+      setErrorMsg(err.message || 'فشل الاتصال بالخادم');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Register Handler
+  const handleRegisterSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!regName.trim() || !regPhone.trim()) {
+      setErrorMsg('الاسم بالكامل ورقم الهاتف مطلوبان.');
+      return;
+    }
+
+    if (!regSapNumber.trim()) {
+      setErrorMsg('كود الـ SAP مطلوب لتسجيل الموظف في النظام.');
+      return;
+    }
+
+    if (!regPassword || regPassword.length < 4) {
+      setErrorMsg('كلمة المرور يجب ألا تقل عن 4 خانات.');
+      return;
+    }
+
+    if (regPassword !== regConfirmPassword) {
+      setErrorMsg('كلمة المرور وتأكيد كلمة المرور غير متطابقين!');
+      return;
+    }
+
+    if (regWeeklyOff.length === 0) {
+      setErrorMsg('يرجى تحديد أيام الإجازة الأسبوعية.');
+      return;
+    }
+
+    if (regWeeklyOff.length > 2) {
+      setErrorMsg('الحد الأقصى للإجازة الأسبوعية هو يومان فقط في الأسبوع.');
+      return;
+    }
+
+    setLoading(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    try {
+      const selectedTitle = (titles || []).find(t => t.code === regTitleCode);
+      const isAreaMgr = regTitleCode === 'memberships_area_manager';
+      const selectedSector = isAreaMgr ? DEFAULT_SECTORS.find(s => s.id === regSectorId) : null;
+
+      const res = await api.register({
+        name: regName.trim(),
+        phone: regPhone.trim(),
+        sapNumber: regSapNumber.trim(),
+        pin: regPassword.trim(),
+        titleCode: regTitleCode,
+        jobTitle: selectedTitle ? (selectedTitle.englishTitle || selectedTitle.nameEn || selectedTitle.name) : 'Employee',
+        branchId: regBranchId,
+        sectorId: selectedSector ? selectedSector.id : '',
+        sectorName: selectedSector ? selectedSector.name : '',
+        weeklyOffDays: regWeeklyOff,
+        avatar: regAvatar || avatarPreview || DEFAULT_AVATAR
+      });
+
+      if (res.success) {
+        setSuccessMsg(res.message);
+        localStorage.setItem('office_auth_user', JSON.stringify(res.employee));
+        setTimeout(() => {
+          onAuthSuccess(res.employee);
+        }, 700);
+      } else {
+        setErrorMsg(res.error || 'حدث خطأ أثناء إنشاء الحساب');
+      }
+    } catch (err) {
+      setErrorMsg(err.message || 'فشل الاتصال بالخادم');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const branchList = branches && branches.length > 0 ? branches : [];
+
+  return (
+    <div className="min-h-screen bg-zinc-950 flex flex-col justify-center items-center p-3 sm:p-5 selection:bg-amber-500 selection:text-black font-['Cairo',sans-serif]">
+      {/* Decorative Brand Ambient Glow */}
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+      {/* ================= VIEW A: DOWNLOAD & INSTALL PORTAL (When opened in Web Browser) ================= */}
+      {!isInstalledApp && !webBypass ? (
+        <div className="w-full max-w-md bg-zinc-900 border border-amber-500/30 rounded-3xl p-5 sm:p-7 shadow-2xl relative z-10 text-zinc-100 animate-fade-in">
+          {/* Theme Toggle Button */}
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="absolute top-4 left-4 p-2 rounded-xl bg-zinc-800/80 hover:bg-zinc-700 text-amber-400 border border-zinc-700/60 transition-all flex items-center justify-center cursor-pointer shadow-xs active:scale-95"
+            title={theme === 'dark' ? 'التحويل إلى الوضع الفاتح (Light Mode)' : 'التحويل إلى الوضع الداكن (Dark Mode)'}
+            aria-label="تبديل الوضع"
+          >
+            {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-amber-500" />}
+          </button>
+
+          {/* Brand Header */}
+          <div className="text-center mb-5">
+            <div className="w-20 h-24 mx-auto mb-2 flex items-center justify-center">
+              <img 
+                src={companyConfig.logoPath} 
+                alt={companyConfig.companyName} 
+                className="w-full h-full object-contain filter drop-shadow-[0_4px_14px_rgba(245,184,0,0.3)]" 
+              />
+            </div>
+            <h1 className="text-xl font-black text-amber-400 tracking-wide">{companyConfig.companyName}</h1>
+            <p className="text-[11px] text-zinc-400 font-bold tracking-wider uppercase mt-0.5">
+              {companyConfig.companyName} • تطبيق تسجيل الحضور الذكي
+            </p>
+          </div>
+
+          {/* Welcome & Instruction Notice */}
+          <div className="bg-amber-950/40 border border-amber-500/40 p-4 rounded-2xl mb-4 text-center space-y-1">
+            <p className="text-xs text-amber-300 font-bold leading-relaxed">
+              لتسجيل حضورك وانصرافك بالـ GPS بدقة، يرجى <b>تثبيت تطبيق {companyConfig.companyName}</b> على هاتفك.
+            </p>
+            <p className="text-[11px] text-zinc-400 leading-normal">
+              بمجرد تثبيت التطبيق وفتحه من شاشة هاتفك، ستفتح لك شاشة تسجيل الدخول مباشرة دون الحاجة لأي روابط تحميل.
+            </p>
+          </div>
+
+          <div className="space-y-3.5">
+            {/* 1-Click PWA Install (Supported mobile browsers) */}
+            {installPrompt && (
+              <button
+                type="button"
+                onClick={handleTriggerNativeInstall}
+                className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/25 active:scale-[0.98] transition-all"
+              >
+                <Sparkles className="w-4 h-4 text-black" />
+                <span>📲 اضغط هنا للتثبيت الفوري على شاشة الهاتف</span>
+              </button>
+            )}
+
+            {/* Android APK Download Card */}
+            <div className="bg-zinc-950 border border-zinc-800 p-4 rounded-2xl space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="font-black text-zinc-100 text-xs flex items-center gap-1.5">
+                  <Smartphone className="w-4 h-4 text-amber-400" />
+                  <span>هواتف أندرويد (Android):</span>
+                </span>
+                <span className="text-[10px] bg-emerald-950/80 text-emerald-400 border border-emerald-800/60 px-2 py-0.5 rounded font-bold">
+                  تحديثات تلقائية ⚡
+                </span>
+              </div>
+              
+              <a
+                href="/download/OfficeAttendance.apk"
+                download="OfficeAttendance.apk"
+                className="w-full py-3.5 px-4 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black font-black text-xs rounded-xl flex items-center justify-center gap-2 shadow-md transition-all active:scale-[0.98]"
+              >
+                <Download className="w-4 h-4 text-black" />
+                <span>تحميل تطبيق أندرويد (OfficeAttendance.apk)</span>
+              </a>
+
+              <div className="text-[11px] text-zinc-400 space-y-1 pt-1 border-t border-zinc-900 leading-normal">
+                <div className="flex items-center gap-1 text-zinc-300">
+                  <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                  <span>حجم خفيف جداً (29 كيلوبايت) وتثبيت مباشر وسريع</span>
+                </div>
+                <div className="flex items-center gap-1 text-zinc-300">
+                  <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                  <span>كافة التحديثات تصلك تلقائياً دون الحاجة لحذف البرنامج أو إعادة تنزيله</span>
+                </div>
+              </div>
+            </div>
+
+            {/* iOS Apple iPhone Install Card */}
+            <div className="bg-zinc-950 border border-zinc-800 p-4 rounded-2xl space-y-2.5">
+              <div className="font-black text-zinc-100 text-xs flex items-center gap-1.5">
+                <Smartphone className="w-4 h-4 text-amber-400" />
+                <span>هواتف آيفون (Apple iPhone iOS):</span>
+              </div>
+
+              <div className="bg-zinc-900/80 p-3 rounded-xl border border-zinc-800/80 text-[11px] text-zinc-300 space-y-1.5 leading-relaxed">
+                <div className="font-bold text-amber-400 flex items-center gap-1">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>طريقة التثبيت في ثانيتين عبر متصفح Safari:</span>
+                </div>
+                <div>1. اضغط على زر <b>المشاركة (Share ⬆️)</b> أسفل شاشة Safari.</div>
+                <div>2. اختر <b>"إضافة إلى الشاشة الرئيسية" (Add to Home Screen)</b>.</div>
+                <div>3. ستظهر أيقونة التطبيق الذهبية على شاشتك فوراً.</div>
+              </div>
+
+              <a
+                href="/download/OfficeAttendance.mobileconfig?v=4.0"
+                download
+                className="w-full py-2.5 px-3 bg-zinc-900 hover:bg-zinc-850 text-zinc-300 hover:text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 border border-zinc-700/80 transition-colors"
+              >
+                <Download className="w-3.5 h-3.5 text-amber-400" />
+                <span>أو تنزيل بروفايل الآيفون المباشر (MobileConfig)</span>
+              </a>
+
+              <p className="text-[10px] text-zinc-400 leading-normal bg-zinc-900/50 p-2 rounded-lg border border-zinc-800/60">
+                💡 <b>إذا كان التطبيق مثبتاً مسبقاً على الآيفون:</b> يرجى حذف الأيقونة القديمة أولاً أو إزالة ملف التعريف القديم من (الإعدادات ⚙️ &gt; عام &gt; إدارة الأجهزة والـ VPN)، ثم إعادة التثبيت لتظهر أيقونة الدرع الذهبي الجديدة فوراً.
+              </p>
+            </div>
+          </div>
+
+          {/* Discreet Admin / Web Bypass Link */}
+          <div className="mt-5 pt-3 border-t border-zinc-800 text-center">
+            <button
+              type="button"
+              onClick={() => setWebBypass(true)}
+              className="text-[11px] text-zinc-500 hover:text-amber-400 transition-colors font-semibold"
+            >
+              💻 دخول المشرفين عبر المتصفح (Web Login) ←
+            </button>
+          </div>
+        </div>
+      ) : (
+        /* ================= VIEW B: PURE LOGIN / REGISTER (Inside Installed App or Web Bypass) ================= */
+        <div className="w-full max-w-md bg-zinc-900 border border-amber-500/30 rounded-3xl p-5 sm:p-7 shadow-2xl relative z-10 text-zinc-100 animate-fade-in">
+          {/* Theme Toggle Button */}
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="absolute top-4 left-4 p-2 rounded-xl bg-zinc-800/80 hover:bg-zinc-700 text-amber-400 border border-zinc-700/60 transition-all flex items-center justify-center cursor-pointer shadow-xs active:scale-95"
+            title={theme === 'dark' ? 'التحويل إلى الوضع الفاتح (Light Mode)' : 'التحويل إلى الوضع الداكن (Dark Mode)'}
+            aria-label="تبديل الوضع"
+          >
+            {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-amber-500" />}
+          </button>
+
+          {/* Brand Header */}
+          <div className="text-center mb-5">
+            <div className="w-20 h-24 mx-auto mb-2 flex items-center justify-center">
+              <img 
+                src={companyConfig.logoPath} 
+                alt={companyConfig.companyName} 
+                className="w-full h-full object-contain filter drop-shadow-[0_4px_14px_rgba(245,184,0,0.3)]" 
+              />
+            </div>
+            <h1 className="text-lg font-black text-amber-400 tracking-wide">{companyConfig.companyName}</h1>
+            <p className="text-[11px] text-zinc-400 font-bold tracking-wider uppercase mt-0.5">
+              {companyConfig.companyName} • نظام الحضور والغياب
+            </p>
+          </div>
+
+          {/* Quick Install Banner for Web Browser visitors */}
+          {!isInstalledApp && (
+            <button
+              type="button"
+              onClick={() => setShowInstallModal(true)}
+              className="w-full mb-4 py-2.5 px-3 bg-gradient-to-r from-amber-500/15 via-amber-500/25 to-amber-500/15 hover:from-amber-500/25 hover:to-amber-500/25 border border-amber-500/40 rounded-2xl text-amber-400 font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs active:scale-[0.98]"
+            >
+              <Download className="w-4 h-4 text-amber-400 animate-bounce" />
+              <span>📲 اضغط هنا لتثبيت التطبيق على شاشة الهاتف</span>
+            </button>
+          )}
+
+          {/* Tab Switcher (Login vs Register) */}
+          <div className="flex bg-zinc-950 p-1.5 rounded-2xl mb-5 border border-zinc-800">
+            <button
+              type="button"
+              onClick={() => {
+                setAuthMode('login');
+                setErrorMsg('');
+                setSuccessMsg('');
+              }}
+              className={`flex-1 py-2 text-xs font-black rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+                authMode === 'login'
+                  ? 'bg-amber-500 text-black shadow-md shadow-amber-500/20'
+                  : 'text-zinc-400 hover:text-white'
+              }`}
+            >
+              <LogIn className="w-4 h-4" />
+              <span>تسجيل الدخول</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setAuthMode('register');
+                setErrorMsg('');
+                setSuccessMsg('');
+              }}
+              className={`flex-1 py-2 text-xs font-black rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+                authMode === 'register'
+                  ? 'bg-amber-500 text-black shadow-md shadow-amber-500/20'
+                  : 'text-zinc-400 hover:text-white'
+              }`}
+            >
+              <UserPlus className="w-4 h-4" />
+              <span>تسجيل موظف جديد</span>
+            </button>
+          </div>
+
+          {/* Messages */}
+          {errorMsg && (
+            <div className="bg-rose-950/70 border border-rose-700/80 p-3 rounded-2xl flex items-center gap-2 text-rose-300 text-xs font-bold mb-4 animate-fade-in">
+              <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+              <span>{errorMsg}</span>
+            </div>
+          )}
+          {successMsg && (
+            <div className="bg-emerald-950/70 border border-emerald-700/80 p-3 rounded-2xl flex items-center gap-2 text-emerald-300 text-xs font-bold mb-4 animate-fade-in">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span>{successMsg}</span>
+            </div>
+          )}
+
+        {/* ================= LOGIN FORM ================= */}
+        {authMode === 'login' ? (
+          <form onSubmit={handleLoginSubmit} className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-zinc-300 mb-1.5 flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <Phone className="w-3.5 h-3.5 text-amber-400" />
+                  <span>رقم الهاتف أو كود الـ SAP:</span>
+                </span>
+                <span className="text-[10px] text-amber-400/90 font-mono font-bold bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20">
+                  Phone / SAP
+                </span>
+              </label>
+              <input
+                type="text"
+                value={loginPhone}
+                onChange={e => setLoginPhone(e.target.value)}
+                placeholder="أدخل رقم الموبايل أو كود الـ SAP"
+                autoComplete="username webauthn"
+                dir="ltr"
+                required
+                className="w-full p-3 text-xs font-bold text-left rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-amber-500 font-mono"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-zinc-300 mb-1.5 flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <Lock className="w-3.5 h-3.5 text-amber-400" />
+                  <span>كلمة المرور:</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowLoginPassword(!showLoginPassword)}
+                  className="text-[11px] text-zinc-400 hover:text-amber-400 flex items-center gap-1"
+                >
+                  {showLoginPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  <span>{showLoginPassword ? 'إخفاء' : 'إظهار'}</span>
+                </button>
+              </label>
+              <input
+                type={showLoginPassword ? 'text' : 'password'}
+                value={loginPassword}
+                onChange={e => setLoginPassword(e.target.value)}
+                placeholder="أدخل كلمة المرور الخاصة بك"
+                dir="ltr"
+                required
+                className="w-full p-3 text-xs font-bold text-left rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-amber-500 font-mono"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black font-black text-xs shadow-lg shadow-amber-500/25 active:scale-[0.98] transition-all flex items-center justify-center gap-2 mt-4"
+            >
+              <LogIn className="w-4 h-4 text-black" />
+              <span>{loading ? 'جاري التحقق...' : 'دخول إلى البرنامج'}</span>
+            </button>
+
+            {/* Biometric Face ID / Touch ID Button */}
+            {biometricsAvailable && (
+              <div className="pt-1">
+                <div className="relative my-3.5 flex items-center justify-center">
+                  <div className="border-t border-zinc-800 w-full"></div>
+                  <span className="bg-zinc-900 px-3 text-[10px] text-zinc-500 font-bold uppercase tracking-wider absolute">
+                    أو الدخول الذكي
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  disabled={loading || biometricLoading}
+                  onClick={handleBiometricLogin}
+                  className="w-full py-3 px-4 rounded-2xl bg-zinc-850 hover:bg-zinc-800 text-amber-400 border border-amber-500/30 hover:border-amber-500/70 font-bold text-xs flex items-center justify-center gap-2.5 shadow-sm transition-all active:scale-[0.98] cursor-pointer"
+                >
+                  {biometricLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
+                      <span>جاري فحص البصمة...</span>
+                    </>
+                  ) : (
+                    <>
+                      <ScanFace className="w-4 h-4 text-amber-400" />
+                      <span>الدخول السريع بواسطة Face ID / بصمة الإصبع</span>
+                    </>
+                  )}
+                </button>
+                <p className="text-[10px] text-zinc-500 text-center mt-2 leading-relaxed">
+                  💡 <b>لأول مرة:</b> يرجى تسجيل الدخول برقمك وكلمة المرور أولاً، ثم الموافقة على تفعيل Face ID عند ظهورها.
+                </p>
+              </div>
+            )}
+          </form>
+        ) : (
+          /* ================= REGISTER FORM ================= */
+          <form onSubmit={handleRegisterSubmit} className="space-y-3.5 text-right">
+            
+            {/* 1. Photo Picker with Direct Gallery & Camera Buttons */}
+            <div className="bg-zinc-950 p-3.5 rounded-2xl border border-zinc-800 text-center">
+              <label className="block text-[11px] font-bold text-zinc-300 mb-2">
+                الصورة الشخصية للموظف:
+              </label>
+
+              <div className="flex items-center justify-center gap-3">
+                <label className="cursor-pointer group relative">
+                  <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-amber-500 shadow-md bg-zinc-900 flex items-center justify-center shrink-0">
+                    {avatarPreview || regAvatar ? (
+                      <img src={avatarPreview || regAvatar} alt="معاينة الصورة" className="w-full h-full object-cover" />
+                    ) : (
+                      <User className="w-8 h-8 text-zinc-600" />
+                    )}
+                  </div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handlePhotoUpload}
+                    disabled={photoCompressing}
+                    className="hidden"
+                  />
+                </label>
+
+                <div className="flex flex-col gap-1.5 items-stretch flex-1">
+                  {/* Option 1: Gallery (No capture attribute - opens Photos / Gallery) */}
+                  <label className="cursor-pointer inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-black text-xs shadow-md shadow-amber-500/20 active:scale-95 transition-all">
+                    {photoCompressing ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-black" />
+                        <span>جاري المعالجة...</span>
+                      </>
+                    ) : (
+                      <>
+                        <ImageIcon className="w-3.5 h-3.5 text-black" />
+                        <span>🖼️ رفع صورة من المعرض</span>
+                      </>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handlePhotoUpload}
+                      disabled={photoCompressing}
+                      className="hidden"
+                    />
+                  </label>
+
+                  {/* Option 2: Camera Selfie (with capture="user") */}
+                  <label className="cursor-pointer inline-flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-amber-400 border border-amber-500/30 font-bold text-xs active:scale-95 transition-all">
+                    <Camera className="w-3.5 h-3.5 text-amber-400" />
+                    <span>📸 التقاط بالكاميرا</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="user"
+                      onChange={handlePhotoUpload}
+                      disabled={photoCompressing}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            {/* 2. Full Name & Phone */}
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-[11px] font-bold text-zinc-300 mb-1">الاسم بالكامل:</label>
+                <input
+                  type="text"
+                  value={regName}
+                  onChange={e => setRegName(e.target.value)}
+                  placeholder="محمد علي"
+                  required
+                  className="w-full p-2.5 text-xs font-bold rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-amber-500"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-zinc-300 mb-1">رقم الهاتف:</label>
+                <input
+                  type="tel"
+                  value={regPhone}
+                  onChange={e => setRegPhone(e.target.value)}
+                  placeholder="01xxxxxxxxx"
+                  dir="ltr"
+                  required
+                  className="w-full p-2.5 text-xs font-bold text-left rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-amber-500 font-mono"
+                />
+              </div>
+            </div>
+
+            {/* 3. SAP Number */}
+            <div>
+              <label className="block text-[11px] font-bold text-zinc-300 mb-1 flex items-center justify-between">
+                <span>كود الـ SAP (الرقم الوظيفي في SAP):</span>
+                <span className="text-[10px] text-amber-400 font-bold bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                  أساسي للربط مع SAP
+                </span>
+              </label>
+              <input
+                type="text"
+                value={regSapNumber}
+                onChange={e => setRegSapNumber(e.target.value)}
+                placeholder="أدخل كود الـ SAP الخاص بالموظف"
+                dir="ltr"
+                required
+                className="w-full p-2.5 text-xs font-bold text-left rounded-xl bg-zinc-950 border border-zinc-800 text-amber-400 placeholder:text-zinc-600 focus:outline-none focus:border-amber-500 font-mono"
+              />
+            </div>
+
+            {/* 4. Password & Confirm Password */}
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-[11px] font-bold text-zinc-300 mb-1 flex items-center justify-between">
+                  <span>كلمة المرور:</span>
+                  <button
+                    type="button"
+                    onClick={() => setShowRegPassword(!showRegPassword)}
+                    className="text-[10px] text-zinc-400 hover:text-amber-400"
+                  >
+                    {showRegPassword ? 'إخفاء' : 'إظهار'}
+                  </button>
+                </label>
+                <input
+                  type={showRegPassword ? 'text' : 'password'}
+                  value={regPassword}
+                  onChange={e => setRegPassword(e.target.value)}
+                  placeholder="4 أرقام أو حروف"
+                  dir="ltr"
+                  required
+                  className="w-full p-2.5 text-xs font-bold text-left rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-amber-500 font-mono"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-zinc-300 mb-1">تأكيد كلمة المرور:</label>
+                <input
+                  type={showRegPassword ? 'text' : 'password'}
+                  value={regConfirmPassword}
+                  onChange={e => setRegConfirmPassword(e.target.value)}
+                  placeholder="أعد كتابتها"
+                  dir="ltr"
+                  required
+                  className="w-full p-2.5 text-xs font-bold text-left rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-amber-500 font-mono"
+                />
+              </div>
+            </div>
+
+            {/* 4. Job Title & Hierarchy */}
+            <div>
+              <label className="block text-[11px] font-bold text-zinc-300 mb-1 flex items-center gap-1">
+                <Briefcase className="w-3 h-3 text-amber-400" />
+                <span>المسمى الوظيفي (الهرم الإداري):</span>
+              </label>
+              <select
+                value={regTitleCode}
+                onChange={e => {
+                  const newTitle = e.target.value;
+                  setRegTitleCode(newTitle);
+                  if (newTitle === 'memberships_area_manager') {
+                    const sec = DEFAULT_SECTORS.find(s => s.id === regSectorId) || DEFAULT_SECTORS[0];
+                    if (sec && sec.branchIds.length > 0) {
+                      setRegBranchId(sec.branchIds[0]);
+                    }
+                  }
+                }}
+                className="w-full p-2.5 text-xs font-bold rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 focus:outline-none focus:border-amber-500"
+              >
+                {titles.map(t => (
+                  <option key={t.code} value={t.code} className="bg-zinc-900 text-zinc-100">
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* 4.1 Sector Selection (For Area Manager) */}
+            {regTitleCode === 'area_manager' && (
+              <div className="bg-amber-500/10 border border-amber-500/30 p-3 rounded-2xl space-y-1.5 animate-fade-in">
+                <label className="block text-[11px] font-black text-amber-300 flex items-center gap-1">
+                  <Building2 className="w-3.5 h-3.5 text-amber-400" />
+                  <span>اختر القطاع المسؤول عنه:</span>
+                </label>
+                <select
+                  value={regSectorId}
+                  onChange={e => {
+                    const secId = e.target.value;
+                    setRegSectorId(secId);
+                    const sec = DEFAULT_SECTORS.find(s => s.id === secId);
+                    if (sec && sec.branchIds.length > 0) {
+                      setRegBranchId(sec.branchIds[0]);
+                    }
+                  }}
+                  className="w-full p-2.5 text-xs font-black rounded-xl bg-zinc-950 border border-amber-500 text-amber-300 focus:outline-none"
+                >
+                  {DEFAULT_SECTORS.map(sec => (
+                    <option key={sec.id} value={sec.id} className="bg-zinc-900 text-zinc-100">
+                      🏢 {sec.name} ({branchList.filter(b => sec.branchIds.includes(b.id)).map(b => b.name).join(' - ')})
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[10px] text-zinc-400 leading-tight">
+                  * سيتم منحك صلاحية متابعة كافة فروع وموظفي هذا القطاع بالكامل.
+                </p>
+              </div>
+            )}
+
+            {/* 5. Branch Selection */}
+            <div>
+              <label className="block text-[11px] font-bold text-zinc-300 mb-1 flex items-center gap-1">
+                <MapPin className="w-3 h-3 text-amber-400" />
+                <span>
+                  {regTitleCode === 'area_manager' 
+                    ? `اختر ${companyConfig.entitySingular} المعتمد بالقطاع (مقر تواجدك الأساسي):` 
+                    : `اختر ${companyConfig.entitySingular} التابع له:`}
+                </span>
+              </label>
+              <select
+                value={regBranchId}
+                onChange={e => setRegBranchId(e.target.value)}
+                className="w-full p-2.5 text-xs font-black rounded-xl bg-zinc-950 border border-amber-500/50 text-amber-400 focus:outline-none focus:border-amber-400"
+              >
+                {(regTitleCode === 'area_manager'
+                  ? branchList.filter(b => {
+                      const sec = DEFAULT_SECTORS.find(s => s.id === regSectorId);
+                      return sec ? sec.branchIds.includes(b.id) : true;
+                    })
+                  : branchList
+                ).map(b => (
+                  <option key={b.id} value={b.id} className="bg-zinc-900 text-zinc-100">
+                    📍 فرع {b.name} ({b.city})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* 6. Weekly Off Days */}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-[11px] font-bold text-zinc-300 flex items-center gap-1">
+                  <Calendar className="w-3 h-3 text-amber-400" />
+                  <span>أيام الإجازة الأسبوعية:</span>
+                </label>
+                <span className="text-[10px] text-amber-400 font-semibold bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20">
+                  يومان كحد أقصى (تُثبت رسميًا)
+                </span>
+              </div>
+              <div className="grid grid-cols-4 sm:grid-cols-7 gap-1">
+                {DAYS_OF_WEEK.map(day => {
+                  const isChecked = regWeeklyOff.includes(day.id);
+                  const isMaxReached = !isChecked && regWeeklyOff.length >= 2;
+                  return (
+                    <button
+                      key={day.id}
+                      type="button"
+                      onClick={() => toggleWeeklyOffDay(day.id)}
+                      className={`py-1.5 px-1 rounded-xl text-center text-[10px] font-bold transition-all border ${
+                        isChecked
+                          ? 'bg-amber-500 text-black border-amber-500 shadow-xs'
+                          : isMaxReached
+                          ? 'bg-zinc-950/50 text-zinc-600 border-zinc-900 opacity-50 cursor-not-allowed'
+                          : 'bg-zinc-950 text-zinc-400 border-zinc-800 hover:border-zinc-700'
+                      }`}
+                    >
+                      {day.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Register Submit Button */}
+            <button
+              type="submit"
+              disabled={loading || photoCompressing}
+              className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black font-black text-xs shadow-lg shadow-amber-500/25 active:scale-[0.98] transition-all flex items-center justify-center gap-2 mt-4"
+            >
+              <UserPlus className="w-4 h-4 text-black" />
+              <span>{loading ? 'جاري تسجيل الحساب...' : 'إتمام التسجيل والدخول'}</span>
+            </button>
+          </form>
+        )}
+
+        {/* Link to full download & install portal */}
+        {!isInstalledApp && (
+          <div className="mt-4 pt-3 border-t border-zinc-800 text-center">
+            <button
+              type="button"
+              onClick={() => {
+                setWebBypass(false);
+                setIsInstalledApp(false);
+                try {
+                  localStorage.removeItem('wd_is_installed_app');
+                } catch (e) {}
+              }}
+              className="text-[11px] text-zinc-400 hover:text-amber-400 transition-colors font-bold inline-flex items-center gap-1.5 cursor-pointer"
+            >
+              <Download className="w-3.5 h-3.5 text-amber-400" />
+              <span>صفحة تنزيل وتثبيت التطبيق على الهاتف (Android / iPhone)</span>
+            </button>
+          </div>
+        )}
+      </div>
+      )}
+
+      {/* Install App Modal */}
+      {showInstallModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in text-right">
+          <div className="bg-zinc-900 rounded-t-3xl sm:rounded-3xl max-w-md w-full p-6 shadow-2xl border border-amber-500/30 max-h-[90vh] overflow-y-auto text-zinc-100">
+            <div className="flex items-center justify-between pb-3 border-b border-zinc-800 mb-4">
+              <div className="flex items-center gap-2">
+                <img src={companyConfig.logoPath} alt="" className="w-7 h-9 object-contain" />
+                <h3 className="text-sm font-black text-amber-400">تنزيل تطبيق {companyConfig.companyName}</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowInstallModal(false)}
+                className="p-1.5 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs leading-relaxed">
+              {/* Option A: Instant PWA Install (Recommended: Instant OTA Auto-updates) */}
+              <div className="bg-gradient-to-b from-amber-500/10 to-transparent border border-amber-500/30 p-4 rounded-2xl space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="font-black text-amber-400 text-sm flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-amber-400" />
+                    <span>تثبيت فوري على الشاشة (موصى به لجميع الأجهزة)</span>
+                  </div>
+                  <span className="text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded-md font-bold">
+                    تحديثات تلقائية ⚡
+                  </span>
+                </div>
+                <p className="text-zinc-300 text-[11px] leading-relaxed">
+                  أفضل وأسرع طريقة: تثبيت البرنامج كأيقونة على هاتفك. <b>أي تحديث جديد يُنشَر على السيرفر يصله هاتفك فوراً وبشكل تلقائي</b> دون الحاجة لحذف البرنامج أو إعادة تنزيله نهائياً!
+                </p>
+
+                {installPrompt ? (
+                  <button
+                    type="button"
+                    onClick={handleTriggerNativeInstall}
+                    className="inline-flex items-center justify-center gap-2 w-full py-2.5 px-4 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black font-black rounded-xl shadow-md transition-all active:scale-[0.98]"
+                  >
+                    <Smartphone className="w-4 h-4 text-black" />
+                    <span>📲 اضغط هنا لتثبيت التطبيق على هاتفك الآن</span>
+                  </button>
+                ) : (
+                  <div className="bg-zinc-950/80 p-3 rounded-xl border border-zinc-800 text-[11px] text-zinc-300 space-y-1">
+                    <div className="font-bold text-amber-400">طريقة التثبيت في 3 ثوانٍ من المتصفح:</div>
+                    <div>• <b>للأندرويد (Chrome):</b> اضغط على القائمة (الثلاث نقاط ⠇ بالأعلى) ثم اختر <b>"تثبيت التطبيق" (Install app)</b>.</div>
+                    <div>• <b>للآيفون (Safari):</b> اضغط على زر <b>المشاركة (Share ⬆️)</b> ثم اختر <b>"إضافة إلى الشاشة الرئيسية"</b>.</div>
+                  </div>
+                )}
+              </div>
+
+              {/* Option B: Android APK */}
+              <div className="bg-zinc-950 border border-zinc-800 p-4 rounded-2xl space-y-2">
+                <div className="font-black text-zinc-200 text-xs flex items-center justify-between">
+                  <span>📱 ملف APK مباشر للأندرويد:</span>
+                  <span className="text-[10px] text-emerald-400 font-bold">متوافق مع جميع أجهزة أندرويد</span>
+                </div>
+                <a
+                  href="/download/OfficeAttendance.apk"
+                  download="OfficeAttendance.apk"
+                  className="inline-flex items-center justify-center gap-2 w-full py-2.5 px-3 bg-zinc-800 hover:bg-zinc-700 text-amber-400 font-bold rounded-xl transition-colors text-xs border border-zinc-700"
+                >
+                  <Download className="w-3.5 h-3.5 text-amber-400" />
+                  <span>تنزيل تطبيق {companyConfig.companyName} (OfficeAttendance.apk)</span>
+                </a>
+                <p className="text-[11px] text-zinc-400 leading-normal">
+                  حزمة أندرويد جاهزة للتثبيت المباشر على جميع الهواتف. ترتبط مباشرة بالسيرفر السحابي، <b>فتصلك كافة التحديثات والتحسينات تلقائياً بمجرد فتح التطبيق</b> دون الحاجة لحذفه أو إعادة تثبيته.
+                </p>
+                <p className="text-[10px] text-zinc-500 leading-normal">
+                  * ملاحظة: يتطلب تفعيل "السماح بتثبيت التطبيقات غير المعروفة" من إعدادات الحماية بهاتفك، واختيار "التثبيت على أي حال" في فحص Play Protect.
+                </p>
+              </div>
+
+              {/* Option C: iOS Profile */}
+              <div className="bg-zinc-950 border border-zinc-800 p-4 rounded-2xl space-y-2">
+                <div className="font-black text-zinc-200 text-xs flex items-center justify-between">
+                  <span>🍎 ملف بروفايل الآيفون (iOS MobileConfig):</span>
+                </div>
+                <a
+                  href="/download/OfficeAttendance.mobileconfig?v=4.0"
+                  download
+                  className="inline-flex items-center justify-center gap-2 w-full py-2 px-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-bold rounded-xl transition-colors text-xs"
+                >
+                  <Download className="w-3.5 h-3.5 text-amber-400" />
+                  <span>تنزيل ملف (OfficeAttendance.mobileconfig)</span>
+                </a>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowInstallModal(false)}
+              className="w-full mt-4 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-bold text-xs"
+            >
+              إغلاق
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Interactive Avatar Cropper Modal */}
+      {rawCropperImage && (
+        <ImageCropperModal
+          imageSrc={rawCropperImage}
+          onCropComplete={handleCropComplete}
+          onCancel={handleCropCancel}
+        />
+      )}
+    </div>
+  );
+}

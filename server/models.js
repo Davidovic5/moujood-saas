@@ -1,0 +1,332 @@
+const mongoose = require('mongoose');
+
+// SaaS Pricing Plans Definition
+const PLANS = {
+  starter: {
+    code: 'starter',
+    nameAr: 'باقة البداية (Starter)',
+    priceMonthly: 1000,
+    priceYearly: 10000,
+    maxEmployees: 15,
+    maxBranches: 1,
+    description: 'مثالية للعيادات، الصيدليات، والمكاتب الصغيرة (حتى 15 موظف وفرع واحد)'
+  },
+  growth: {
+    code: 'growth',
+    nameAr: 'باقة النمو (Growth)',
+    priceMonthly: 3000,
+    priceYearly: 30000,
+    maxEmployees: 50,
+    maxBranches: 3,
+    description: 'مثالية للشركات المتوسطة، سلاسل المطاعم، والمتاجر (حتى 50 موظف و3 فروع)'
+  },
+  enterprise: {
+    code: 'enterprise',
+    nameAr: 'باقة المؤسسات (Enterprise)',
+    priceMonthly: 5000,
+    priceYearly: 50000,
+    maxEmployees: 120,
+    maxBranches: 999,
+    description: 'مثالية للمصانع وسلاسل المحلات الكبيرة (حتى 120 موظف وفروع غير محدودة)'
+  }
+};
+
+// 0. Tenant Schema (Multi-Tenancy & SaaS Subscription)
+const TenantSchema = new mongoose.Schema({
+  tenantId: { type: String, required: true, unique: true, index: true },
+  slug: { type: String, required: true, unique: true, index: true, lowercase: true, trim: true },
+  name: { type: String, required: true },
+  timezone: { type: String, default: 'Africa/Cairo' },
+  plan: { 
+    type: String, 
+    enum: ['trial', 'starter', 'growth', 'enterprise'], 
+    default: 'trial' 
+  },
+  status: { 
+    type: String, 
+    enum: ['trial', 'active', 'past_due', 'suspended', 'cancelled'], 
+    default: 'trial',
+    index: true 
+  },
+  trialEndsAt: { type: Date, default: () => new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) }, // 14 days free trial
+  subscriptionEndsAt: { type: Date, default: null },
+  maxEmployees: { type: Number, default: 15 },
+  maxBranches: { type: Number, default: 1 },
+  billingCycle: { type: String, enum: ['monthly', 'yearly'], default: 'monthly' },
+  contactPhone: { type: String, default: '' },
+  contactEmail: { type: String, default: '' },
+  adminName: { type: String, default: '' },
+  notes: { type: String, default: '' },
+  branding: {
+    companyName: { type: String, default: 'اسم الشركة' },
+    logoUrl: { type: String, default: '/brand/logo.svg' },
+    primaryColor: { type: String, default: '#F5B800' }
+  },
+  createdAt: { type: Date, default: Date.now }
+});
+
+// 1. Branch Schema
+const BranchSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  tenantId: { type: String, required: true, default: 'default', index: true },
+  code: { type: String, required: true },
+  name: { type: String, required: true },
+  city: { type: String, required: true },
+  latitude: { type: Number, required: true },
+  longitude: { type: Number, required: true },
+  radiusMeters: { type: Number, default: 100 },
+  sectorId: { type: String, default: 'sector_main' },
+  sectorName: { type: String, default: 'القطاع الرئيسي' },
+  isArchived: { type: Boolean, default: false }
+});
+BranchSchema.index({ tenantId: 1, code: 1 });
+
+// 2. Title & Permissions Schema
+const TitleSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  tenantId: { type: String, required: true, default: 'default', index: true },
+  code: { type: String, required: true },
+  name: { type: String, required: true },
+  nameAr: { type: String, default: '' },
+  nameEn: { type: String, default: '' },
+  englishTitle: { type: String, default: '' },
+  arabicTitle: { type: String, default: '' },
+  description: { type: String, default: '' },
+  level: { type: Number, default: 4 },
+  order: { type: Number, default: 4 },
+  color: { type: String, default: 'zinc' },
+  isSystemAdmin: { type: Boolean, default: false },
+  permissions: {
+    check_in_out: { type: Boolean, default: true },
+    view_own_attendance: { type: Boolean, default: true },
+    view_office_presence: { type: Boolean, default: true },
+    request_leave: { type: Boolean, default: true },
+    request_permission: { type: Boolean, default: true },
+    approve_leaves_permissions: { type: Boolean, default: false },
+    approve_early_checkout: { type: Boolean, default: false },
+    manage_employees: { type: Boolean, default: false },
+    manage_titles_permissions: { type: Boolean, default: false },
+    manage_office_settings: { type: Boolean, default: false },
+    view_reports: { type: Boolean, default: false },
+    view_all_branches: { type: Boolean, default: false },
+    override_early_checkout: { type: Boolean, default: false },
+    edit_employee_details: { type: Boolean, default: false }
+  }
+});
+TitleSchema.index({ tenantId: 1, code: 1 });
+
+// 3. Employee Schema
+const EmployeeSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  tenantId: { type: String, required: true, default: 'default', index: true },
+  name: { type: String, required: true },
+  phone: { type: String, required: true, index: true },
+  sapNumber: { type: String, trim: true, default: '', index: true },
+  password: { type: String, required: true },
+  pin: { type: String, default: '' },
+  titleCode: { type: String, required: true, default: 'employee' },
+  jobTitle: { type: String, default: 'موظف (Employee)' },
+  branchId: { type: String, required: true, default: 'branch_main' },
+  sectorId: { type: String, default: 'sector_main' },
+  sectorName: { type: String, default: 'القطاع الرئيسي' },
+  weeklyOffDays: { type: [String], default: ['friday', 'saturday'] },
+  weeklyOffDaysLocked: { type: Boolean, default: false },
+  avatar: { type: String, default: '' },
+  leaveBalance: { type: Number, default: 21 },
+  permissionsBalanceHours: { type: Number, default: 2 },
+  boundDeviceId: { type: String, default: null },
+  deviceInfo: { type: String, default: null },
+  deviceBoundAt: { type: String, default: null },
+  isSuperAdmin: { type: Boolean, default: false },
+  isGhost: { type: Boolean, default: false },
+  passkeys: { type: Array, default: [] },
+  createdAt: { type: String, default: () => new Date().toISOString() }
+});
+EmployeeSchema.index({ tenantId: 1, branchId: 1 });
+EmployeeSchema.index({ tenantId: 1, phone: 1 });
+
+// 4. Attendance Record Schema
+const AttendanceRecordSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  tenantId: { type: String, required: true, default: 'default', index: true },
+  employeeId: { type: String, required: true, index: true },
+  userId: { type: String, index: true },
+  branchId: { type: String, required: true },
+  date: { type: String, required: true, index: true }, // Format: YYYY-MM-DD
+  workDate: { type: String, index: true }, // Normalized YYYY-MM-DD
+  checkInTime: { type: String, required: true },
+  checkOutTime: { type: String, default: null },
+  status: { type: String, default: 'in_office' }, // 'in_office' | 'checked_out'
+  latitude: { type: Number },
+  longitude: { type: Number },
+  distanceMeters: { type: Number, default: 0 },
+  accuracyMeters: { type: Number, default: 0 },
+  checkOutLatitude: { type: Number },
+  checkOutLongitude: { type: Number },
+  checkOutDistanceMeters: { type: Number, default: 0 },
+  checkOutAccuracyMeters: { type: Number, default: 0 },
+  durationMinutes: { type: Number, default: 0 },
+  completed8Hours: { type: Boolean, default: false },
+  autoCheckedOut: { type: Boolean, default: false },
+  checkOutNotes: { type: String, default: '' }
+});
+AttendanceRecordSchema.index({ tenantId: 1, employeeId: 1, workDate: 1 }, { unique: true });
+AttendanceRecordSchema.index({ tenantId: 1, workDate: -1, branchId: 1 });
+AttendanceRecordSchema.index({ tenantId: 1, branchId: 1, status: 1 });
+
+// 5. Leave & Permission Request Schema
+const RequestSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  tenantId: { type: String, required: true, default: 'default', index: true },
+  employeeId: { type: String, required: true, index: true },
+  branchId: { type: String, default: null },
+  type: { type: String, required: true, enum: ['leave', 'permission', 'early_checkout'] },
+  leaveType: { 
+    type: String, 
+    enum: [
+      'sick', 
+      'annual', 
+      'casual', 
+      'work_mission', 
+      'weekly_rest_compensation', 
+      'holiday_compensation', 
+      'travel', 
+      'weekly_off', 
+      'other'
+    ], 
+    default: 'annual' 
+  },
+  startDate: { type: String },
+  endDate: { type: String },
+  date: { type: String },
+  permissionType: { type: String, enum: ['morning', 'evening', 'midday'], default: 'morning' },
+  permissionHours: { type: Number, default: 2 },
+  startTime: { type: String, default: '09:00' },
+  endTime: { type: String, default: '11:00' },
+  reason: { type: String, required: true },
+  attachmentName: { type: String, default: null },
+  attachmentData: { type: String, default: null },
+  missionBranchId: { type: String, default: null },
+  missionBranchName: { type: String, default: null },
+  missionDate: { type: String, default: null },
+  compensationOffDate: { type: String, default: null },
+  compensationWorkedDate: { type: String, default: null },
+  holidayName: { type: String, default: null },
+  status: { type: String, default: 'pending', enum: ['pending', 'approved', 'rejected'] },
+  requestedAt: { type: String, default: () => new Date().toISOString() },
+  reviewedBy: { type: String, default: null },
+  reviewedAt: { type: String, default: null },
+  reviewNote: { type: String, default: null }
+});
+RequestSchema.index({ tenantId: 1, branchId: 1, status: 1, createdAt: -1 });
+
+// 6. Office Settings Schema
+const OfficeSettingsSchema = new mongoose.Schema({
+  tenantId: { type: String, required: true, default: 'default', index: true },
+  companyName: { type: String, default: 'اسم الشركة' },
+  shiftHours: { type: Number, default: 8 },
+  graceMinutes: { type: Number, default: 15 },
+  workStartTime: { type: String, default: '09:00' },
+  workEndTime: { type: String, default: '17:00' }
+});
+
+// 7. Push Notification Subscription Schema
+const PushSubscriptionSchema = new mongoose.Schema({
+  tenantId: { type: String, required: true, default: 'default', index: true },
+  employeeId: { type: String, required: true, index: true },
+  endpoint: { type: String, required: true, unique: true },
+  subscription: { type: Object, required: true },
+  userAgent: { type: String, default: '' },
+  createdAt: { type: Date, default: Date.now }
+});
+
+// 8. WebAuthn Challenge Schema (5-minute TTL for serverless passkey flows)
+const WebAuthnChallengeSchema = new mongoose.Schema({
+  tenantId: { type: String, default: 'default' },
+  challenge: { type: String, required: true, unique: true },
+  userId: { type: String, default: '' },
+  phone: { type: String, default: '' },
+  type: { type: String, enum: ['registration', 'authentication'], default: 'authentication' },
+  createdAt: { type: Date, default: Date.now, expires: 300 }
+});
+
+// 9. In-App Notification Schema
+const NotificationSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  tenantId: { type: String, required: true, default: 'default', index: true },
+  recipientId: { type: String, required: true, index: true },
+  title: { type: String, required: true },
+  body: { type: String, required: true },
+  type: { type: String, enum: ['request_created', 'request_reviewed', 'auto_checkout', 'system'], default: 'system' },
+  relatedId: { type: String, default: '' },
+  read: { type: Boolean, default: false },
+  url: { type: String, default: '/?tab=leaves' },
+  createdAt: { type: String, default: () => new Date().toISOString() }
+});
+
+// 10. Audit Log Schema
+const AuditLogSchema = new mongoose.Schema({
+  tenantId: { type: String, required: true, index: true },
+  actorId: { type: String, default: '' },
+  actorName: { type: String, default: '' },
+  action: { type: String, required: true },
+  targetId: { type: String, default: '' },
+  targetType: { type: String, default: '' },
+  oldValue: { type: mongoose.Schema.Types.Mixed, default: null },
+  newValue: { type: mongoose.Schema.Types.Mixed, default: null },
+  ipAddress: { type: String, default: '' },
+  userAgent: { type: String, default: '' },
+  timestamp: { type: Date, default: Date.now, index: true }
+});
+AuditLogSchema.index({ tenantId: 1, timestamp: -1 });
+AuditLogSchema.index({ tenantId: 1, targetId: 1, timestamp: -1 });
+
+// 11. Subscription Payment Schema (InstaPay & Bank Transfers)
+const SubscriptionPaymentSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  tenantId: { type: String, required: true, index: true },
+  tenantSlug: { type: String, required: true },
+  companyName: { type: String, required: true },
+  plan: { type: String, required: true, enum: ['starter', 'growth', 'enterprise'] },
+  billingCycle: { type: String, enum: ['monthly', 'yearly'], default: 'monthly' },
+  amount: { type: Number, required: true }, // in EGP
+  currency: { type: String, default: 'EGP' },
+  paymentMethod: { type: String, enum: ['instapay', 'bank_transfer', 'cash', 'card'], default: 'instapay' },
+  instapayReference: { type: String, default: '' },
+  senderPhone: { type: String, default: '' },
+  receiptImage: { type: String, default: '' }, // Data URL or Image URL
+  status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending', index: true },
+  adminNote: { type: String, default: '' },
+  approvedAt: { type: Date, default: null },
+  createdAt: { type: Date, default: Date.now, index: true }
+});
+SubscriptionPaymentSchema.index({ tenantId: 1, createdAt: -1 });
+
+const Tenant = mongoose.models.Tenant || mongoose.model('Tenant', TenantSchema);
+const Branch = mongoose.models.Branch || mongoose.model('Branch', BranchSchema);
+const Title = mongoose.models.Title || mongoose.model('Title', TitleSchema);
+const Employee = mongoose.models.Employee || mongoose.model('Employee', EmployeeSchema);
+const AttendanceRecord = mongoose.models.AttendanceRecord || mongoose.model('AttendanceRecord', AttendanceRecordSchema);
+const Request = mongoose.models.Request || mongoose.model('Request', RequestSchema);
+const OfficeSettings = mongoose.models.OfficeSettings || mongoose.model('OfficeSettings', OfficeSettingsSchema);
+const PushSubscription = mongoose.models.PushSubscription || mongoose.model('PushSubscription', PushSubscriptionSchema);
+const WebAuthnChallenge = mongoose.models.WebAuthnChallenge || mongoose.model('WebAuthnChallenge', WebAuthnChallengeSchema);
+const InAppNotification = mongoose.models.InAppNotification || mongoose.model('InAppNotification', NotificationSchema);
+const AuditLog = mongoose.models.AuditLog || mongoose.model('AuditLog', AuditLogSchema);
+const SubscriptionPayment = mongoose.models.SubscriptionPayment || mongoose.model('SubscriptionPayment', SubscriptionPaymentSchema);
+
+module.exports = {
+  PLANS,
+  Tenant,
+  Branch,
+  Title,
+  Employee,
+  AttendanceRecord,
+  Request,
+  OfficeSettings,
+  PushSubscription,
+  WebAuthnChallenge,
+  InAppNotification,
+  AuditLog,
+  SubscriptionPayment
+};

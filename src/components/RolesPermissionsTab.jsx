@@ -1,0 +1,1923 @@
+import React, { useState, useEffect } from 'react';
+import { 
+  Shield, 
+  ShieldCheck, 
+  Check, 
+  X, 
+  Plus, 
+  Save, 
+  Users, 
+  Sliders, 
+  CheckCircle2, 
+  AlertCircle,
+  Lock,
+  Unlock,
+  KeyRound,
+  Smartphone,
+  Calendar,
+  Clock,
+  Search,
+  Building2,
+  Edit2,
+  RotateCcw,
+  UserPlus,
+  Trash2
+} from 'lucide-react';
+import { api } from '../api';
+import { getUserAllowedBranches, DEFAULT_SECTORS } from '../utils/userScope';
+import { formatArabicDateWithDay } from '../utils/dateHelpers';
+import { companyConfig } from '../config/company.config';
+
+const DEFAULT_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23F5B800'><path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z'/></svg>";
+
+const DAYS_OF_WEEK = [
+  { id: 'saturday', name: 'السبت' },
+  { id: 'sunday', name: 'الأحد' },
+  { id: 'monday', name: 'الإثنين' },
+  { id: 'tuesday', name: 'الثلاثاء' },
+  { id: 'wednesday', name: 'الأربعاء' },
+  { id: 'thursday', name: 'الخميس' },
+  { id: 'friday', name: 'الجمعة' }
+];
+
+const HIERARCHY_ORDER = {
+  super_admin: 0,
+  executive_director: 1,
+  area_manager: 2,
+  branch_manager: 3,
+  employee: 4
+};
+
+export function RolesPermissionsTab({ currentUser, onTitlesUpdated }) {
+  const isSuperAdmin = Boolean(currentUser?.isSuperAdmin);
+  const canManageTitles = Boolean(isSuperAdmin || currentUser?.permissions?.manage_titles_permissions);
+  const canManageEmployees = Boolean(isSuperAdmin || currentUser?.permissions?.manage_employees);
+  const canEditEmployeeDetails = Boolean(isSuperAdmin || currentUser?.permissions?.edit_employee_details || currentUser?.permissions?.manage_employees);
+  const canDeleteEmployee = Boolean(isSuperAdmin || currentUser?.permissions?.delete_employee);
+
+  const [activeSubTab, setActiveSubTab] = useState(canManageTitles ? 'roles' : 'employees');
+  const [deletingEmp, setDeletingEmp] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  // Roles & Titles state
+  const [titles, setTitles] = useState([]);
+  const [selectedTitleCode, setSelectedTitleCode] = useState('employee');
+  const [permissionsState, setPermissionsState] = useState({});
+  const [loading, setLoading] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState('');
+  const [saveError, setSaveError] = useState('');
+
+  // Role CRUD Modals
+  const [isAddRoleModalOpen, setIsAddRoleModalOpen] = useState(false);
+  const [isEditRoleModalOpen, setIsEditRoleModalOpen] = useState(false);
+  const [newRoleForm, setNewRoleForm] = useState({
+    nameAr: '',
+    nameEn: '',
+    description: '',
+    level: 4
+  });
+  const [editRoleForm, setEditRoleForm] = useState({
+    nameAr: '',
+    nameEn: '',
+    description: '',
+    level: 4
+  });
+  const [roleActionLoading, setRoleActionLoading] = useState(false);
+
+  // My administrative rank in the hierarchy
+  const myRank = isSuperAdmin ? 0 : (HIERARCHY_ORDER[currentUser?.titleCode] || 99);
+
+  // Editable titles: Only strictly subordinate titles (targetRank > myRank)! Super admin can edit all.
+  const editableTitles = titles.filter(t => {
+    if (isSuperAdmin) return true;
+    const targetRank = t.order || HIERARCHY_ORDER[t.code] || 99;
+    return targetRank > myRank;
+  });
+
+  // Switch tab if permissions change
+  useEffect(() => {
+    if (!canManageTitles && activeSubTab === 'roles' && canManageEmployees) {
+      setActiveSubTab('employees');
+    } else if (!canManageEmployees && activeSubTab === 'employees' && canManageTitles) {
+      setActiveSubTab('roles');
+    }
+  }, [canManageTitles, canManageEmployees, activeSubTab]);
+
+  // Employees & Devices management state
+  const [employees, setEmployees] = useState([]);
+  const [branches, setBranches] = useState([]);
+  const [employeeSearch, setEmployeeSearch] = useState('');
+  const [selectedBranchFilter, setSelectedBranchFilter] = useState('all');
+  const [empActionLoading, setEmpActionLoading] = useState(false);
+  const [empSuccessMsg, setEmpSuccessMsg] = useState('');
+  const [empErrorMsg, setEmpErrorMsg] = useState('');
+
+  // Editing Employee details & balance modal state
+  const [editingEmp, setEditingEmp] = useState(null);
+  const [editName, setEditName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editSapNumber, setEditSapNumber] = useState('');
+  const [editNewPassword, setEditNewPassword] = useState('');
+  const [editTitleCode, setEditTitleCode] = useState('memberships_specialist');
+  const [editBranchId, setEditBranchId] = useState('branch_october2');
+  const [editSectorId, setEditSectorId] = useState('');
+  const [editWeeklyOff, setEditWeeklyOff] = useState(['friday', 'saturday']);
+  const [editLeaveBalance, setEditLeaveBalance] = useState(30);
+  const [editPermBalance, setEditPermBalance] = useState(2);
+
+  // Quick Reset Password modal state
+  const [resetPasswordEmp, setResetPasswordEmp] = useState(null);
+  const [resetPassInput, setResetPassInput] = useState('1234');
+  const [resetPassLoading, setResetPassLoading] = useState(false);
+
+  // Add Employee modal state
+  const [showAddEmpModal, setShowAddEmpModal] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newPhone, setNewPhone] = useState('');
+  const [newSapNumber, setNewSapNumber] = useState('');
+  const [newPassword, setNewPassword] = useState('1234');
+  const [newTitleCode, setNewTitleCode] = useState('memberships_specialist');
+  const [newBranchId, setNewBranchId] = useState('branch_october2');
+  const [newSectorId, setNewSectorId] = useState((DEFAULT_SECTORS && DEFAULT_SECTORS[0]?.id) || '');
+  const [newWeeklyOff, setNewWeeklyOff] = useState(['friday', 'saturday']);
+  const [newLeaveBalance, setNewLeaveBalance] = useState(30);
+  const [newPermBalance, setNewPermBalance] = useState(2);
+
+  // Dictionary of permission labels & descriptions
+  const permissionDefs = [
+    {
+      key: 'check_in_out',
+      label: 'تسجيل الحضور والانصراف (GPS)',
+      description: 'السماح بتسجيل الحضور وبدء وردية الـ 8 ساعات وتأكيد الانصراف',
+      category: 'الحضور والعمل'
+    },
+    {
+      key: 'view_own_attendance',
+      label: 'متابعة العداد وسجل الحضور الشخصي',
+      description: 'رؤية ساعات العمل المتبقية والمنقضية وسجل الأيام السابقة',
+      category: 'الحضور والعمل'
+    },
+    {
+      key: 'override_early_checkout',
+      label: 'صلاحية الانصراف المبكر الاستثنائي',
+      description: 'السماح بعمل Check Out قبل إتمام الـ 8 ساعات للحالات الطارئة',
+      category: 'الحضور والعمل'
+    },
+    {
+      key: 'view_office_presence',
+      label: `رؤية المتواجدين في ${companyConfig.entitySingular} وحالة الفريق`,
+      description: 'الاطلاع على تبويب (مين حاضر، مين إجازة مرضية، أسبوعية، سفر...)',
+      category: 'الرؤية والمتابعة'
+    },
+    {
+      key: 'view_reports',
+      label: 'الاطلاع على تقارير وسجلات الحضور الشاملة',
+      description: 'رؤية كشوفات حضور الموظفين بالكامل وساعات الالتزام',
+      category: 'الرؤية والمتابعة'
+    },
+    {
+      key: 'request_leave',
+      label: 'تقديم طلبات الإجازات (مرضي، سفر، سنوي)',
+      description: 'إمكانية إرسال طلبات الإجازة من حسابه إلى الإدارة',
+      category: 'الإجازات والأذونات'
+    },
+    {
+      key: 'request_permission',
+      label: 'تقديم طلب إذن الساعتين',
+      description: 'إمكانية طلب إذن صباحي أو مسائي ساعتين',
+      category: 'الإجازات والأذونات'
+    },
+    {
+      key: 'approve_leaves_permissions',
+      label: 'اعتماد وموافقة على إجازات وأذونات الموظفين',
+      description: 'منح صلاحية قبول أو رفض طلبات الإجازات والأذونات المقدمة',
+      category: 'الإجازات والأذونات'
+    },
+    {
+      key: 'manage_employees',
+      label: 'إضافة وتعديل بيانات الموظفين',
+      description: 'التحكم في قائمة الموظفين وتعيين مسمياتهم الوظيفية وتعديل بياناتهم',
+      category: 'الإدارة والإعدادات'
+    },
+    {
+      key: 'edit_employee_details',
+      label: 'تعديل مسميات وفروع وأرصدة الموظفين',
+      description: 'صلاحية تغيير المسمى الوظيفي والفرع وأيام الراحة ورصيد الإجازات لأي موظف',
+      category: 'الإدارة والإعدادات'
+    },
+    {
+      key: 'manage_office_settings',
+      label: `تعديل إعدادات ${companyConfig.entityPlural} ومواقع الـ GPS`,
+      description: `تغيير إحداثيات ${companyConfig.entityPlural} ونطاق القطر المسموح به`,
+      category: 'الإدارة والإعدادات'
+    },
+    {
+      key: 'manage_titles_permissions',
+      label: 'التحكم في صلاحيات المسميات (هذه الشاشة)',
+      description: 'تعديل وتحديد ما يراه ويصل إليه كل مسمى وظيفي',
+      category: 'الإدارة والإعدادات'
+    },
+    {
+      key: 'delete_employee',
+      label: 'حذف حسابات الموظفين',
+      description: 'صلاحية حذف حساب موظف نهائياً مع كافة سجلاته من النظام وقاعدة البيانات',
+      category: 'الإدارة والإعدادات'
+    }
+  ];
+
+  const fetchTitles = async () => {
+    try {
+      const res = await api.getTitles();
+      if (res.success) {
+        const visibleTitles = (res.titles || []).filter(t => !t.isHidden);
+        setTitles(visibleTitles);
+        const allowed = visibleTitles.filter(t => {
+          if (isSuperAdmin) return true;
+          const targetRank = t.order || HIERARCHY_ORDER[t.code] || 99;
+          return targetRank > myRank;
+        });
+        const selected = allowed.find(t => t.code === selectedTitleCode) || allowed[0];
+        if (selected) {
+          setSelectedTitleCode(selected.code);
+          setPermissionsState({ ...(selected.permissions || {}) });
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      setSaveError('تعذر جلب المسميات الوظيفية من السيرفر.');
+    }
+  };
+
+  const fetchEmployeesData = async () => {
+    try {
+      const [empRes, branchRes] = await Promise.all([
+        api.getEmployees(),
+        api.getBranches()
+      ]);
+      if (empRes.success && empRes.employees) {
+        setEmployees(empRes.employees);
+      }
+      if (branchRes.success && branchRes.branches) {
+        setBranches(branchRes.branches);
+      }
+    } catch (err) {
+      console.error("fetchEmployeesData error:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchTitles();
+    fetchEmployeesData();
+  }, []);
+
+  const handleSelectTitle = (code) => {
+    setSelectedTitleCode(code);
+    const titleObj = titles.find(t => t.code === code);
+    if (titleObj) {
+      setPermissionsState({ ...(titleObj.permissions || {}) });
+    }
+    setSaveSuccess('');
+    setSaveError('');
+  };
+
+  const handleTogglePermission = (key) => {
+    setPermissionsState(prev => ({
+      ...prev,
+      [key]: !prev[key]
+    }));
+    setSaveSuccess('');
+  };
+
+  const handleSavePermissions = async () => {
+    const targetRank = activeTitle?.order || HIERARCHY_ORDER[selectedTitleCode] || 99;
+    if (!isSuperAdmin && targetRank <= myRank) {
+      setSaveError('غير مصرح: لا يمكنك تعديل صلاحيات مسمى وظيفي مساوٍ أو أعلى منك في الهرم الإداري.');
+      return;
+    }
+
+    setLoading(true);
+    setSaveSuccess('');
+    setSaveError('');
+
+    try {
+      const res = await api.updateTitlePermissions(selectedTitleCode, permissionsState);
+      if (res.success && res.title) {
+        setSaveSuccess(`تم حفظ وتطبيق صلاحيات (${res.title.name}) بنجاح.`);
+        // Immediately update local titles array so state stays fresh!
+        setTitles(prev => prev.map(t => t.code === selectedTitleCode ? res.title : t));
+        setPermissionsState({ ...(res.title.permissions || {}) });
+        if (onTitlesUpdated) onTitlesUpdated(res.title);
+      } else {
+        setSaveError(res.error || 'حدث خطأ أثناء حفظ الصلاحيات.');
+      }
+    } catch (err) {
+      console.error(err);
+      setSaveError(err.message || 'فشل الاتصال بالخادم.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateRole = async (e) => {
+    e.preventDefault();
+    if (!newRoleForm.nameAr.trim()) {
+      setSaveError('يرجى كتابة اسم المسمى بالعربية');
+      return;
+    }
+    setRoleActionLoading(true);
+    setSaveError('');
+    setSaveSuccess('');
+    try {
+      const res = await api.createTitle({
+        nameAr: newRoleForm.nameAr.trim(),
+        nameEn: newRoleForm.nameEn.trim() || newRoleForm.nameAr.trim(),
+        description: newRoleForm.description.trim(),
+        level: Number(newRoleForm.level) || 4,
+        permissions: {
+          check_in_out: true,
+          view_own_attendance: true,
+          view_office_presence: true,
+          request_leave: true,
+          request_permission: true
+        }
+      });
+      if (res.success && res.title) {
+        setSaveSuccess(`✅ تم إنشاء المسمى الوظيفي "${res.title.name}" بنجاح.`);
+        setIsAddRoleModalOpen(false);
+        setNewRoleForm({ nameAr: '', nameEn: '', description: '', level: 4 });
+        await fetchTitles();
+        setSelectedTitleCode(res.title.code);
+        if (onTitlesUpdated) onTitlesUpdated(res.title);
+      } else {
+        setSaveError(res.error || 'تعذر إضافة المسمى الوظيفي.');
+      }
+    } catch (err) {
+      setSaveError(err.message || 'فشل الاتصال بالخادم.');
+    } finally {
+      setRoleActionLoading(false);
+    }
+  };
+
+  const openEditRoleModal = (title) => {
+    setEditRoleForm({
+      nameAr: title.nameAr || title.name || '',
+      nameEn: title.nameEn || title.englishTitle || '',
+      description: title.description || '',
+      level: title.level || title.order || 4
+    });
+    setIsEditRoleModalOpen(true);
+  };
+
+  const handleUpdateRole = async (e) => {
+    e.preventDefault();
+    if (!editRoleForm.nameAr.trim()) {
+      setSaveError('اسم المسمى بالعربية مطلوب.');
+      return;
+    }
+    setRoleActionLoading(true);
+    setSaveError('');
+    setSaveSuccess('');
+    try {
+      const res = await api.updateTitle(selectedTitleCode, {
+        nameAr: editRoleForm.nameAr.trim(),
+        nameEn: editRoleForm.nameEn.trim(),
+        description: editRoleForm.description.trim(),
+        level: Number(editRoleForm.level)
+      });
+      if (res.success && res.title) {
+        setSaveSuccess(`✅ تم تحديث المسمى الوظيفي "${res.title.name}" بنجاح.`);
+        setIsEditRoleModalOpen(false);
+        await fetchTitles();
+        if (onTitlesUpdated) onTitlesUpdated(res.title);
+      } else {
+        setSaveError(res.error || 'تعذر تعديل المسمى الوظيفي.');
+      }
+    } catch (err) {
+      setSaveError(err.message || 'فشل الاتصال بالخادم.');
+    } finally {
+      setRoleActionLoading(false);
+    }
+  };
+
+  const handleDeleteRole = async () => {
+    if (!activeTitle) return;
+    if (activeTitle.isSystemAdmin || activeTitle.code === 'executive_director') {
+      setSaveError('لا يمكن حذف المسمى الوظيفي الرئيسي للنظام (Super Admin).');
+      return;
+    }
+    if (!window.confirm(`هل أنت متأكد من حذف المسمى الوظيفي "${activeTitle.name}" نهائياً من النظام؟`)) {
+      return;
+    }
+    setRoleActionLoading(true);
+    setSaveError('');
+    setSaveSuccess('');
+    try {
+      const res = await api.deleteTitle(selectedTitleCode);
+      if (res.success) {
+        setSaveSuccess(`✅ تم حذف المسمى الوظيفي بنجاح.`);
+        await fetchTitles();
+        if (onTitlesUpdated) onTitlesUpdated(null);
+      } else {
+        setSaveError(res.error || 'تعذر حذف المسمى الوظيفي.');
+      }
+    } catch (err) {
+      setSaveError(err.message || 'فشل الاتصال بالخادم.');
+    } finally {
+      setRoleActionLoading(false);
+    }
+  };
+
+  // Reset device binding for an employee
+  const handleResetDevice = async (employee) => {
+    if (!window.confirm(`هل أنت متأكد من فك ارتباط الجهاز لحساب الموظف (${employee.name})؟\n\nسيمكّنه هذا من تسجيل الدخول من هاتفه الجديد فوراً وتأمينه عليه.`)) {
+      return;
+    }
+
+    setEmpActionLoading(true);
+    setEmpSuccessMsg('');
+    setEmpErrorMsg('');
+
+    try {
+      const res = await api.resetEmployeeDevice(employee.id);
+      if (res.success) {
+        setEmpSuccessMsg(`تم فك ارتباط الجهاز للموظف (${employee.name}) بنجاح. يمكنه الآن فتح حسابه على الهاتف الجديد.`);
+        fetchEmployeesData();
+      } else {
+        setEmpErrorMsg(res.error || 'تعذر فك الارتباط.');
+      }
+    } catch (err) {
+      setEmpErrorMsg(err.message || 'فشل الاتصال بالخادم.');
+    } finally {
+      setEmpActionLoading(false);
+    }
+  };
+
+  // Delete Employee Confirmation Handler
+  const handleConfirmDeleteEmployee = async () => {
+    if (!deletingEmp) return;
+    setDeleteLoading(true);
+    setEmpErrorMsg('');
+    setEmpSuccessMsg('');
+    try {
+      const res = await api.deleteEmployee(deletingEmp.id);
+      if (res.success) {
+        setEmpSuccessMsg(res.message || `تم حذف حساب ${deletingEmp.name} نهائياً بنجاح.`);
+        const deletedId = deletingEmp.id;
+        setDeletingEmp(null);
+        if (editingEmp && editingEmp.id === deletedId) {
+          setEditingEmp(null);
+        }
+        await fetchEmployeesData();
+      } else {
+        setEmpErrorMsg(res.error || 'تعذر حذف الحساب.');
+      }
+    } catch (err) {
+      setEmpErrorMsg(err.message || 'حدث خطأ أثناء محاولة حذف الحساب.');
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  // Open Edit Details modal
+  const openEditModal = (emp) => {
+    setEditingEmp(emp);
+    setEditName(emp.name || '');
+    setEditPhone(emp.phone || '');
+    setEditSapNumber(emp.sapNumber || '');
+    setEditNewPassword('');
+    setEditTitleCode(emp.titleCode || 'memberships_specialist');
+    setEditBranchId(emp.branchId || 'branch_october2');
+    setEditSectorId(emp.sectorId || (DEFAULT_SECTORS && DEFAULT_SECTORS[0]?.id) || '');
+    setEditWeeklyOff(emp.weeklyOffDays || ['friday', 'saturday']);
+    setEditLeaveBalance(emp.leaveBalance !== undefined ? emp.leaveBalance : 30);
+    setEditPermBalance(emp.permissionsBalanceHours !== undefined ? emp.permissionsBalanceHours : 2);
+    setEmpSuccessMsg('');
+    setEmpErrorMsg('');
+  };
+
+  // Save Full Employee Details
+  const handleSaveEmployeeDetails = async (e) => {
+    e.preventDefault();
+    if (!editingEmp) return;
+
+    if (editWeeklyOff.length === 0 || editWeeklyOff.length > 2) {
+      setEmpErrorMsg('يجب تحديد يوم أو يومين فقط كحد أقصى للإجازة الأسبوعية.');
+      return;
+    }
+
+    setEmpActionLoading(true);
+    setEmpSuccessMsg('');
+    setEmpErrorMsg('');
+
+    try {
+      const selectedSector = DEFAULT_SECTORS.find(s => s.id === editSectorId);
+      const updateData = {
+        name: editName.trim(),
+        phone: editPhone.trim(),
+        sapNumber: editSapNumber.trim(),
+        titleCode: editTitleCode,
+        branchId: editBranchId,
+        sectorId: editTitleCode === 'memberships_area_manager' ? editSectorId : '',
+        sectorName: editTitleCode === 'memberships_area_manager' && selectedSector ? selectedSector.name : '',
+        weeklyOffDays: editWeeklyOff,
+        leaveBalance: Number(editLeaveBalance),
+        permissionsBalanceHours: Number(editPermBalance)
+      };
+      if (editNewPassword.trim()) {
+        updateData.newPassword = editNewPassword.trim();
+      }
+
+      const res = await api.updateEmployeeDetails(editingEmp.id, updateData);
+      if (res.success) {
+        setEmpSuccessMsg(`تم تحديث بيانات الموظف (${editName}) بنجاح.`);
+        setEditingEmp(null);
+        fetchEmployeesData();
+      } else {
+        setEmpErrorMsg(res.error || 'تعذر تحديث بيانات الموظف.');
+      }
+    } catch (err) {
+      setEmpErrorMsg(err.message || 'فشل الاتصال بالخادم.');
+    } finally {
+      setEmpActionLoading(false);
+    }
+  };
+
+  // Quick Password Reset Handler (إعادة تعيين كلمة المرور السريعة)
+  const handleResetPasswordSubmit = async (e) => {
+    if (e) e.preventDefault();
+    if (!resetPasswordEmp) return;
+    setResetPassLoading(true);
+    setEmpErrorMsg('');
+    setEmpSuccessMsg('');
+    try {
+      const res = await api.resetEmployeePassword(resetPasswordEmp.id, resetPassInput.trim() || '1234');
+      if (res.success) {
+        setEmpSuccessMsg(res.message || `تم تعيين كلمة المرور للموظف (${resetPasswordEmp.name}) بنجاح.`);
+        setResetPasswordEmp(null);
+        await fetchEmployeesData();
+      } else {
+        setEmpErrorMsg(res.error || 'تعذر إعادة تعيين كلمة المرور.');
+      }
+    } catch (err) {
+      setEmpErrorMsg(err.message || 'فشل الاتصال بالخادم.');
+    } finally {
+      setResetPassLoading(false);
+    }
+  };
+
+  // Create New Employee
+  const handleCreateEmployee = async (e) => {
+    e.preventDefault();
+    if (!newName.trim() || !newPhone.trim()) {
+      setEmpErrorMsg('الاسم ورقم الهاتف مطلوبان.');
+      return;
+    }
+    if (!newSapNumber.trim()) {
+      setEmpErrorMsg('كود الـ SAP مطلوب لتسجيل الموظف في النظام.');
+      return;
+    }
+
+    if (newWeeklyOff.length === 0 || newWeeklyOff.length > 2) {
+      setEmpErrorMsg('يجب تحديد يوم أو يومين فقط كحد أقصى للإجازة الأسبوعية.');
+      return;
+    }
+
+    setEmpActionLoading(true);
+    setEmpSuccessMsg('');
+    setEmpErrorMsg('');
+
+    try {
+      const selectedTitle = titles.find(t => t.code === newTitleCode);
+      const selectedSector = DEFAULT_SECTORS.find(s => s.id === newSectorId);
+      const res = await api.addEmployee({
+        name: newName.trim(),
+        phone: newPhone.trim(),
+        sapNumber: newSapNumber.trim(),
+        password: newPassword.trim() || '1234',
+        pin: newPassword.trim() || '1234',
+        titleCode: newTitleCode,
+        jobTitle: selectedTitle ? (selectedTitle.englishTitle || selectedTitle.nameEn || selectedTitle.name) : 'Employee',
+        branchId: newBranchId,
+        sectorId: newSectorId || '',
+        sectorName: selectedSector ? selectedSector.name : '',
+        weeklyOffDays: newWeeklyOff,
+        leaveBalance: Number(newLeaveBalance),
+        permissionsBalanceHours: Number(newPermBalance)
+      });
+      if (res.success) {
+        setEmpSuccessMsg(`تمت إضافة الموظف الجديد (${newName}) بنجاح.`);
+        setShowAddEmpModal(false);
+        setNewName('');
+        setNewPhone('');
+        setNewSapNumber('');
+        setNewPassword('1234');
+        fetchEmployeesData();
+      } else {
+        setEmpErrorMsg(res.error || 'تعذر إضافة الموظف.');
+      }
+    } catch (err) {
+      setEmpErrorMsg(err.message || 'فشل الاتصال بالخادم.');
+    } finally {
+      setEmpActionLoading(false);
+    }
+  };
+
+  // Filter employees according to user's scope
+  const allowedBranches = getUserAllowedBranches(currentUser, branches);
+  const allowedBranchIds = allowedBranches.map(b => b.id);
+  const isExecutive = currentUser?.titleCode === 'executive_director' || Boolean(currentUser?.isSuperAdmin);
+
+  const visibleEmployees = employees.filter(emp => {
+    // Hide Super Admin from employee list
+    if (emp.isGhost || emp.isSuperAdmin) {
+      return false;
+    }
+    // Branch scoping
+    if (!isExecutive && !isSuperAdmin && !allowedBranchIds.includes(emp.branchId)) {
+      return false;
+    }
+    // Branch filter dropdown
+    if (selectedBranchFilter !== 'all' && emp.branchId !== selectedBranchFilter) {
+      return false;
+    }
+    // Search query
+    if (employeeSearch.trim()) {
+      const q = employeeSearch.trim().toLowerCase();
+      const nameMatch = emp.name && emp.name.toLowerCase().includes(q);
+      const phoneMatch = emp.phone && emp.phone.includes(q);
+      const titleMatch = emp.jobTitle && emp.jobTitle.toLowerCase().includes(q);
+      const sapMatch = emp.sapNumber && emp.sapNumber.toString().toLowerCase().includes(q);
+      return nameMatch || phoneMatch || titleMatch || sapMatch;
+    }
+    return true;
+  });
+
+  const activeTitle = titles.find(t => t.code === selectedTitleCode);
+  const categories = Array.from(new Set(permissionDefs.map(p => p.category)));
+
+  return (
+    <div className="space-y-4 pb-8 text-right font-['Cairo',sans-serif]">
+      {/* Top Segmented Subtab Switcher */}
+      {(canManageTitles || canManageEmployees) && (
+        <div className="bg-zinc-900 p-1.5 rounded-2xl border border-zinc-800 shadow-lg flex gap-1">
+          {canManageTitles && (
+            <button
+              type="button"
+              onClick={() => setActiveSubTab('roles')}
+              className={`flex-1 py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 ${
+                activeSubTab === 'roles'
+                  ? 'bg-amber-500 text-black shadow-md shadow-amber-500/20'
+                  : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
+              }`}
+            >
+              <Shield className="w-4 h-4" />
+              <span>صلاحيات المسميات</span>
+            </button>
+          )}
+
+          {canManageEmployees && (
+            <button
+              type="button"
+              onClick={() => setActiveSubTab('employees')}
+              className={`flex-1 py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 ${
+                activeSubTab === 'employees'
+                  ? 'bg-amber-500 text-black shadow-md shadow-amber-500/20'
+                  : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
+              }`}
+            >
+              <Smartphone className="w-4 h-4" />
+              <span>الأجهزة والأرصدة للموظفين</span>
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* ================= VIEW 1: EMPLOYEES, DEVICES & BALANCES ================= */}
+      {activeSubTab === 'employees' && (
+        <div className="space-y-4 animate-fade-in">
+          {/* Header & Description */}
+          <div className="bg-zinc-900 p-4 rounded-3xl border border-zinc-800 shadow-xl space-y-2">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-black text-amber-400 flex items-center gap-1.5">
+                <Users className="w-4 h-4 text-amber-400" />
+                <span>إدارة ارتباط الأجهزة وأرصدة الإجازات للموظفين</span>
+              </h2>
+              <div className="flex items-center gap-2">
+                {canEditEmployeeDetails && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAddEmpModal(true)}
+                    className="text-[11px] font-black text-black bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 px-3 py-1.5 rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+                  >
+                    <UserPlus className="w-3.5 h-3.5" />
+                    <span>إضافة موظف جديد</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={fetchEmployeesData}
+                  className="text-[11px] font-bold text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 px-2.5 py-1.5 rounded-xl border border-amber-500/30 transition-colors cursor-pointer"
+                >
+                  تحديث
+                </button>
+              </div>
+            </div>
+            <p className="text-[11px] text-zinc-400 leading-relaxed">
+              كل حساب موظف <b>مقفل على جهازه فقط</b> لمنع فتح الحساب من هاتفين. في حال قام الموظف بتغيير هاتفه، اضغط "فك ارتباط الجهاز" ليتمكن من ربط هاتفه الجديد. كما يمكنك تعديل رصيد الإجازات السنوية (الافتراضي 30 يوماً) وساعتين أذن شهرياً للموظفين الجدد.
+            </p>
+
+            {/* Notification messages */}
+            {empSuccessMsg && (
+              <div className="p-2.5 rounded-xl bg-emerald-950/80 border border-emerald-600/60 text-emerald-300 text-xs font-bold flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>{empSuccessMsg}</span>
+              </div>
+            )}
+            {empErrorMsg && (
+              <div className="p-2.5 rounded-xl bg-rose-950/80 border border-rose-600/60 text-rose-300 text-xs font-bold flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                <span>{empErrorMsg}</span>
+              </div>
+            )}
+
+            {/* Search and Branch Filter */}
+            <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-zinc-800">
+              <div className="relative flex-1">
+                <Search className="w-3.5 h-3.5 text-zinc-500 absolute right-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={employeeSearch}
+                  onChange={e => setEmployeeSearch(e.target.value)}
+                  placeholder="بحث باسم الموظف أو رقم هاتفه..."
+                  className="w-full pr-8 pl-3 py-2 text-xs rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-amber-500 font-bold"
+                />
+              </div>
+
+              {allowedBranches.length > 1 && (
+                <div className="flex items-center gap-1.5 sm:w-56">
+                  <Building2 className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                  <select
+                    value={selectedBranchFilter}
+                    onChange={e => setSelectedBranchFilter(e.target.value)}
+                    className="w-full p-2 text-xs font-bold rounded-xl bg-zinc-950 border border-zinc-800 text-amber-400 focus:outline-none focus:border-amber-500"
+                  >
+                    <option value="all">كافة الفروع المتاحة</option>
+                    {allowedBranches.map(b => (
+                      <option key={b.id} value={b.id}>
+                        فرع {b.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Employee Cards List */}
+          <div className="space-y-2.5">
+            {visibleEmployees.length === 0 ? (
+              <div className="bg-zinc-900 border border-zinc-800 p-8 rounded-3xl text-center text-zinc-500">
+                <Users className="w-10 h-10 mx-auto text-zinc-700 mb-2" />
+                <p className="text-xs font-bold">لا يوجد موظفون مطابقون في نطاق صلاحياتك.</p>
+              </div>
+            ) : (
+              visibleEmployees.map(emp => {
+                const isBound = Boolean(emp.boundDeviceId);
+                const isProtectedEmp = emp.isSuperAdmin || emp.id === 'emp_admin' || emp.id === currentUser?.id;
+
+                return (
+                  <div
+                    key={emp.id}
+                    className="bg-zinc-900 border border-zinc-800 p-3.5 rounded-2xl shadow-md space-y-2.5 hover:border-zinc-700 transition-colors"
+                  >
+                    {/* Top Row: Avatar, Name, Job Title */}
+                    <div className="flex items-center justify-between gap-2.5">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <img
+                          src={emp.avatar || DEFAULT_AVATAR}
+                          alt={emp.name}
+                          className="w-10 h-10 rounded-xl object-cover border border-amber-500/40 shrink-0"
+                          onError={e => { e.target.src = DEFAULT_AVATAR; }}
+                        />
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-black text-xs text-zinc-100 truncate">{emp.name}</span>
+                            <span className="text-[10px] text-zinc-500 font-mono" dir="ltr">({emp.phone})</span>
+                            {emp.sapNumber ? (
+                              <span className="text-[10px] bg-amber-500/15 text-amber-300 border border-amber-500/30 px-1.5 py-0.2 rounded font-mono font-bold" dir="ltr">
+                                SAP: {emp.sapNumber}
+                              </span>
+                            ) : null}
+                          </div>
+                          <div className="text-[10px] font-bold text-amber-400 truncate mt-0.5">
+                            {emp.jobTitle} • فرع {emp.branchName || 'اكتوبر ٢'}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Device Status Badge */}
+                      <div className="shrink-0">
+                        {isBound ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-emerald-950/70 border border-emerald-600/60 text-emerald-300">
+                            <Lock className="w-3 h-3 text-emerald-400" />
+                            <span>مقفل على جهاز</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-amber-950/70 border border-amber-600/60 text-amber-300">
+                            <Unlock className="w-3 h-3 text-amber-400" />
+                            <span>متاح للربط</span>
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Middle Row: Device Details & Balances */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-zinc-800/80 text-xs">
+                      {/* Device Info */}
+                      <div className="bg-zinc-950 p-2.5 rounded-xl border border-zinc-800/70 space-y-1">
+                        <div className="text-[10px] text-zinc-400 flex items-center justify-between">
+                          <span className="flex items-center gap-1 font-bold">
+                            <Smartphone className="w-3 h-3 text-amber-400" />
+                            <span>الجهاز المرتبط:</span>
+                          </span>
+                          {isBound && (
+                            <button
+                              type="button"
+                              onClick={() => handleResetDevice(emp)}
+                              disabled={empActionLoading}
+                              className="text-[10px] font-black text-rose-400 hover:text-rose-300 bg-rose-950/70 hover:bg-rose-900 border border-rose-800/60 px-2 py-0.5 rounded-lg transition-colors flex items-center gap-1"
+                              title="فك ارتباط الجهاز للسماح بنقل الحساب لهاتف جديد"
+                            >
+                              <RotateCcw className="w-3 h-3" />
+                              <span>فك الارتباط 🔓</span>
+                            </button>
+                          )}
+                        </div>
+                        <div className="text-zinc-200 font-bold text-[11px] truncate">
+                          {isBound ? (
+                            <span>{emp.deviceInfo || 'هاتف محمول معتمد'}</span>
+                          ) : (
+                            <span className="text-zinc-500">لا يوجد جهاز مرتبط حالياً (سيرتبط بأول جهاز يسجل منه)</span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Balances Info */}
+                      <div className="bg-zinc-950 p-2.5 rounded-xl border border-zinc-800/70 space-y-1">
+                        <div className="text-[10px] text-zinc-400 flex items-center justify-between">
+                          <span className="flex items-center gap-1 font-bold">
+                            <Calendar className="w-3 h-3 text-amber-400" />
+                            <span>الأرصدة والبيانات:</span>
+                          </span>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {canEditEmployeeDetails && !isProtectedEmp && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setResetPasswordEmp(emp);
+                                  setResetPassInput('1234');
+                                }}
+                                className="text-[10px] font-black text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 px-2 py-0.5 rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+                                title="إعادة تعيين كلمة مرور الموظف بضغطة زر"
+                              >
+                                <KeyRound className="w-3 h-3" />
+                                <span>الباسورد 🔑</span>
+                              </button>
+                            )}
+                            {canEditEmployeeDetails && (
+                              <button
+                                type="button"
+                                onClick={() => openEditModal(emp)}
+                                className="text-[10px] font-black text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 px-2 py-0.5 rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+                                title="تعديل المسمى الوظيفي والفرع وأيام الراحة والرصيد"
+                              >
+                                <Edit2 className="w-3 h-3" />
+                                <span>تعديل ✏️</span>
+                              </button>
+                            )}
+                            {canDeleteEmployee && !isProtectedEmp && (
+                              <button
+                                type="button"
+                                onClick={() => setDeletingEmp(emp)}
+                                className="text-[10px] font-black text-rose-400 hover:text-rose-300 bg-rose-950/70 hover:bg-rose-900 border border-rose-800/60 px-2 py-0.5 rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+                                title="حذف حساب الموظف نهائياً من النظام"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                                <span>حذف 🗑️</span>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-amber-300 font-black text-[11px] flex items-center gap-2">
+                          <span>إجازات: <b>{emp.leaveBalance !== undefined ? emp.leaveBalance : 30} يوم</b></span>
+                          <span>•</span>
+                          <span>أذونات: <b>{emp.permissionsBalanceHours !== undefined ? emp.permissionsBalanceHours : 2} س/شهر</b></span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* Add New Employee Modal */}
+          {showAddEmpModal && (
+            <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+              <div className="w-full max-w-md bg-zinc-900 border border-amber-500/40 rounded-3xl p-5 shadow-2xl space-y-4 text-right max-h-[90vh] overflow-y-auto">
+                <div className="flex items-center justify-between pb-2 border-b border-zinc-800">
+                  <div className="flex items-center gap-2">
+                    <UserPlus className="w-5 h-5 text-amber-400" />
+                    <div>
+                      <h3 className="text-xs font-black text-zinc-100">إضافة موظف جديد بالنظام</h3>
+                      <span className="text-[10px] text-zinc-400 block">تسجيل بيانات الموظف وكود SAP</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowAddEmpModal(false)}
+                    className="p-1 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <form onSubmit={handleCreateEmployee} className="space-y-3">
+                  {/* Name & Phone */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[11px] font-bold text-zinc-300 mb-1">الاسم بالكامل:</label>
+                      <input
+                        type="text"
+                        value={newName}
+                        onChange={e => setNewName(e.target.value)}
+                        placeholder="محمد علي"
+                        required
+                        className="w-full p-2.5 text-xs font-bold rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 focus:outline-none focus:border-amber-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-zinc-300 mb-1">رقم الهاتف:</label>
+                      <input
+                        type="tel"
+                        value={newPhone}
+                        onChange={e => setNewPhone(e.target.value)}
+                        placeholder="01xxxxxxxxx"
+                        required
+                        className="w-full p-2.5 text-xs font-bold rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 focus:outline-none focus:border-amber-500 font-mono text-left"
+                        dir="ltr"
+                      />
+                    </div>
+                  </div>
+
+                  {/* SAP Code & Initial Password */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[11px] font-bold text-zinc-300 mb-1 flex items-center justify-between">
+                        <span>كود الـ SAP:</span>
+                        <span className="text-[10px] text-amber-400 font-bold">مطلوب</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={newSapNumber}
+                        onChange={e => setNewSapNumber(e.target.value)}
+                        placeholder="أدخل كود الـ SAP"
+                        required
+                        className="w-full p-2.5 text-xs font-bold rounded-xl bg-zinc-950 border border-zinc-800 text-amber-400 focus:outline-none focus:border-amber-500 font-mono text-left"
+                        dir="ltr"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-zinc-300 mb-1">كلمة المرور:</label>
+                      <input
+                        type="text"
+                        value={newPassword}
+                        onChange={e => setNewPassword(e.target.value)}
+                        placeholder="1234"
+                        required
+                        className="w-full p-2.5 text-xs font-bold rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 focus:outline-none focus:border-amber-500 font-mono text-left"
+                        dir="ltr"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Position (المسمى الوظيفي) */}
+                  <div>
+                    <label className="block text-[11px] font-bold text-zinc-300 mb-1">المسمى الوظيفي (Position):</label>
+                    <select
+                      value={newTitleCode}
+                      onChange={e => setNewTitleCode(e.target.value)}
+                      className="w-full p-2.5 text-xs font-bold rounded-xl bg-zinc-950 border border-zinc-800 text-amber-400 focus:outline-none focus:border-amber-500"
+                    >
+                      {titles.map(t => (
+                        <option key={t.code} value={t.code} className="bg-zinc-900 text-zinc-100">
+                          {t.name || t.englishTitle}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Branch (الفرع) */}
+                  <div>
+                    <label className="block text-[11px] font-bold text-zinc-300 mb-1">فرع العمل الأساسي:</label>
+                    <select
+                      value={newBranchId}
+                      onChange={e => setNewBranchId(e.target.value)}
+                      className="w-full p-2.5 text-xs font-bold rounded-xl bg-zinc-950 border border-zinc-800 text-amber-400 focus:outline-none focus:border-amber-500"
+                    >
+                      {branches.map(b => (
+                        <option key={b.id} value={b.id} className="bg-zinc-900 text-zinc-100">
+                          فرع {b.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Sector (القطاع) - Only if area manager */}
+                  {newTitleCode === 'memberships_area_manager' && (
+                    <div className="bg-amber-500/10 p-2.5 rounded-2xl border border-amber-500/30">
+                      <label className="block text-[11px] font-black text-amber-300 mb-1">قطاع الإشراف والمتابعة:</label>
+                      <select
+                        value={newSectorId}
+                        onChange={e => setNewSectorId(e.target.value)}
+                        className="w-full p-2 text-xs font-bold rounded-xl bg-zinc-950 border border-zinc-800 text-amber-400 focus:outline-none focus:border-amber-500"
+                      >
+                        {DEFAULT_SECTORS.map(sec => (
+                          <option key={sec.id} value={sec.id} className="bg-zinc-900 text-zinc-100">
+                            {sec.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Weekly Off Days */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="text-[11px] font-bold text-zinc-300">أيام الإجازة الأسبوعية (الراحة):</label>
+                      <span className="text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20 font-medium">يومان كحد أقصى</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {DAYS_OF_WEEK.map(day => {
+                        const isSelected = newWeeklyOff.includes(day.id);
+                        const isMaxReached = !isSelected && newWeeklyOff.length >= 2;
+                        return (
+                          <button
+                            key={day.id}
+                            type="button"
+                            onClick={() => {
+                              if (isSelected) {
+                                if (newWeeklyOff.length > 1) {
+                                  setNewWeeklyOff(newWeeklyOff.filter(d => d !== day.id));
+                                }
+                              } else {
+                                if (newWeeklyOff.length >= 2) {
+                                  setEmpErrorMsg('الحد الأقصى للإجازة الأسبوعية هو يومان فقط.');
+                                  return;
+                                }
+                                setEmpErrorMsg('');
+                                setNewWeeklyOff([...newWeeklyOff, day.id]);
+                              }
+                            }}
+                            className={`px-2.5 py-1 text-[11px] font-bold rounded-xl border transition-all ${
+                              isSelected
+                                ? 'bg-amber-500 text-black border-amber-400 shadow-xs'
+                                : isMaxReached
+                                ? 'bg-zinc-950/50 text-zinc-600 border-zinc-900 opacity-40 cursor-not-allowed'
+                                : 'bg-zinc-950 text-zinc-400 border-zinc-800 hover:border-zinc-700'
+                            }`}
+                          >
+                            {day.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Balances */}
+                  <div className="grid grid-cols-2 gap-2 pt-1 border-t border-zinc-800">
+                    <div>
+                      <label className="block text-[10px] font-bold text-zinc-300 mb-1">رصيد الإجازات (أيام):</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="120"
+                        value={newLeaveBalance}
+                        onChange={e => setNewLeaveBalance(e.target.value)}
+                        required
+                        className="w-full p-2 text-xs font-black rounded-xl bg-zinc-950 border border-zinc-800 text-amber-400 focus:outline-none focus:border-amber-500 text-center font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-zinc-300 mb-1">رصيد الأذونات (ساعات):</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="20"
+                        value={newPermBalance}
+                        onChange={e => setNewPermBalance(e.target.value)}
+                        required
+                        className="w-full p-2 text-xs font-black rounded-xl bg-zinc-950 border border-zinc-800 text-amber-400 focus:outline-none focus:border-amber-500 text-center font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-2">
+                    <button
+                      type="submit"
+                      disabled={empActionLoading}
+                      className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black font-black text-xs shadow-md transition-all flex items-center justify-center gap-1.5"
+                    >
+                      <UserPlus className="w-4 h-4" />
+                      <span>{empActionLoading ? 'جاري الإضافة...' : 'إضافة الموظف الآن'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowAddEmpModal(false)}
+                      className="px-4 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold text-xs"
+                    >
+                      إلغاء
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+          {editingEmp && (
+            <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+              <div className="w-full max-w-md bg-zinc-900 border border-amber-500/40 rounded-3xl p-5 shadow-2xl space-y-4 text-right max-h-[90vh] overflow-y-auto">
+                <div className="flex items-center justify-between pb-2 border-b border-zinc-800">
+                  <div className="flex items-center gap-2">
+                    <Edit2 className="w-5 h-5 text-amber-400" />
+                    <div>
+                      <h3 className="text-xs font-black text-zinc-100">تعديل بيانات المسمى والفرع والرصيد</h3>
+                      <span className="text-[10px] text-amber-400 font-bold block">{editingEmp.name}</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setEditingEmp(null)}
+                    className="p-1 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <form onSubmit={handleSaveEmployeeDetails} className="space-y-3">
+                  {/* Name & Phone */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[11px] font-bold text-zinc-300 mb-1">الاسم بالكامل:</label>
+                      <input
+                        type="text"
+                        value={editName}
+                        onChange={e => setEditName(e.target.value)}
+                        required
+                        className="w-full p-2.5 text-xs font-bold rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 focus:outline-none focus:border-amber-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-zinc-300 mb-1">رقم الهاتف:</label>
+                      <input
+                        type="tel"
+                        value={editPhone}
+                        onChange={e => setEditPhone(e.target.value)}
+                        required
+                        className="w-full p-2.5 text-xs font-bold rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 focus:outline-none focus:border-amber-500 font-mono text-left"
+                        dir="ltr"
+                      />
+                    </div>
+                  </div>
+
+                  {/* SAP Code */}
+                  <div>
+                    <label className="block text-[11px] font-bold text-zinc-300 mb-1 flex items-center justify-between">
+                      <span>كود الـ SAP:</span>
+                      <span className="text-[10px] text-amber-400 font-bold bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                        الربط المستقبلي مع SAP
+                      </span>
+                    </label>
+                    <input
+                      type="text"
+                      value={editSapNumber}
+                      onChange={e => setEditSapNumber(e.target.value)}
+                      placeholder="أدخل كود الـ SAP"
+                      className="w-full p-2.5 text-xs font-bold rounded-xl bg-zinc-950 border border-zinc-800 text-amber-400 focus:outline-none focus:border-amber-500 font-mono text-left"
+                      dir="ltr"
+                    />
+                  </div>
+
+                  {/* Reset / Change Password (تغيير أو إعادة تعيين كلمة المرور) */}
+                  <div className="bg-zinc-950 p-3 rounded-2xl border border-zinc-800 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-bold text-zinc-300 flex items-center gap-1">
+                        <KeyRound className="w-3.5 h-3.5 text-amber-400" />
+                        <span>تعيين كلمة مرور جديدة للموظف:</span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setEditNewPassword('1234')}
+                        className="text-[10px] font-bold text-amber-400 hover:text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20 cursor-pointer"
+                      >
+                        وضع 1234 الافتراضية
+                      </button>
+                    </div>
+                    <input
+                      type="text"
+                      value={editNewPassword}
+                      onChange={e => setEditNewPassword(e.target.value)}
+                      placeholder="اتركها فارغة للإبقاء على كلمته الحالية (أو اكتب كلمة جديدة)"
+                      className="w-full p-2 text-xs font-bold rounded-xl bg-zinc-900 border border-zinc-800 text-amber-400 placeholder:text-zinc-600 focus:outline-none focus:border-amber-500 font-mono text-left"
+                      dir="ltr"
+                    />
+                  </div>
+
+                  {/* Position (المسمى الوظيفي) */}
+                  <div>
+                    <label className="block text-[11px] font-bold text-zinc-300 mb-1">المسمى الوظيفي (Position):</label>
+                    <select
+                      value={editTitleCode}
+                      onChange={e => setEditTitleCode(e.target.value)}
+                      className="w-full p-2.5 text-xs font-bold rounded-xl bg-zinc-950 border border-zinc-800 text-amber-400 focus:outline-none focus:border-amber-500"
+                    >
+                      {titles.map(t => (
+                        <option key={t.code} value={t.code} className="bg-zinc-900 text-zinc-100">
+                          {t.name || t.englishTitle}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Branch (الفرع) */}
+                  <div>
+                    <label className="block text-[11px] font-bold text-zinc-300 mb-1">فرع العمل الأساسي:</label>
+                    <select
+                      value={editBranchId}
+                      onChange={e => setEditBranchId(e.target.value)}
+                      className="w-full p-2.5 text-xs font-bold rounded-xl bg-zinc-950 border border-zinc-800 text-amber-400 focus:outline-none focus:border-amber-500"
+                    >
+                      {branches.map(b => (
+                        <option key={b.id} value={b.id} className="bg-zinc-900 text-zinc-100">
+                          فرع {b.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Sector (القطاع) - Only if area manager */}
+                  {editTitleCode === 'memberships_area_manager' && (
+                    <div className="bg-amber-500/10 p-2.5 rounded-2xl border border-amber-500/30">
+                      <label className="block text-[11px] font-black text-amber-300 mb-1">قطاع الإشراف والمتابعة:</label>
+                      <select
+                        value={editSectorId}
+                        onChange={e => setEditSectorId(e.target.value)}
+                        className="w-full p-2 text-xs font-bold rounded-xl bg-zinc-950 border border-zinc-800 text-amber-400 focus:outline-none focus:border-amber-500"
+                      >
+                        {DEFAULT_SECTORS.map(sec => (
+                          <option key={sec.id} value={sec.id} className="bg-zinc-900 text-zinc-100">
+                            {sec.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Weekly Off Days */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="text-[11px] font-bold text-zinc-300">أيام الإجازة الأسبوعية (الراحة):</label>
+                      <span className="text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20 font-medium">يومان كحد أقصى</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {DAYS_OF_WEEK.map(day => {
+                        const isSelected = editWeeklyOff.includes(day.id);
+                        const isMaxReached = !isSelected && editWeeklyOff.length >= 2;
+                        return (
+                          <button
+                            key={day.id}
+                            type="button"
+                            onClick={() => {
+                              if (isSelected) {
+                                if (editWeeklyOff.length > 1) {
+                                  setEditWeeklyOff(editWeeklyOff.filter(d => d !== day.id));
+                                }
+                              } else {
+                                if (editWeeklyOff.length >= 2) {
+                                  setEmpErrorMsg('الحد الأقصى للإجازة الأسبوعية هو يومان فقط.');
+                                  return;
+                                }
+                                setEmpErrorMsg('');
+                                setEditWeeklyOff([...editWeeklyOff, day.id]);
+                              }
+                            }}
+                            className={`px-2.5 py-1 text-[11px] font-bold rounded-xl border transition-all ${
+                              isSelected
+                                ? 'bg-amber-500 text-black border-amber-400 shadow-xs'
+                                : isMaxReached
+                                ? 'bg-zinc-950/50 text-zinc-600 border-zinc-900 opacity-40 cursor-not-allowed'
+                                : 'bg-zinc-950 text-zinc-400 border-zinc-800 hover:border-zinc-700'
+                            }`}
+                          >
+                            {day.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Balances */}
+                  <div className="grid grid-cols-2 gap-2 pt-1 border-t border-zinc-800">
+                    <div>
+                      <label className="block text-[10px] font-bold text-zinc-300 mb-1">رصيد الإجازات (أيام):</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="120"
+                        value={editLeaveBalance}
+                        onChange={e => setEditLeaveBalance(e.target.value)}
+                        required
+                        className="w-full p-2 text-xs font-black rounded-xl bg-zinc-950 border border-zinc-800 text-amber-400 focus:outline-none focus:border-amber-500 text-center font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-zinc-300 mb-1">رصيد الأذونات (ساعات):</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="20"
+                        value={editPermBalance}
+                        onChange={e => setEditPermBalance(e.target.value)}
+                        required
+                        className="w-full p-2 text-xs font-black rounded-xl bg-zinc-950 border border-zinc-800 text-amber-400 focus:outline-none focus:border-amber-500 text-center font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-2">
+                    <button
+                      type="submit"
+                      disabled={empActionLoading}
+                      className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black font-black text-xs shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <Save className="w-4 h-4" />
+                      <span>{empActionLoading ? 'جاري الحفظ...' : 'حفظ البيانات المعتمدة'}</span>
+                    </button>
+                    {canDeleteEmployee && !(editingEmp.isSuperAdmin || editingEmp.id === 'emp_admin' || editingEmp.id === currentUser?.id) && (
+                      <button
+                        type="button"
+                        onClick={() => setDeletingEmp(editingEmp)}
+                        className="px-3 py-2.5 rounded-xl bg-rose-950/80 hover:bg-rose-900 border border-rose-800/60 text-rose-300 font-bold text-xs flex items-center gap-1 cursor-pointer"
+                        title="حذف هذا الموظف نهائياً"
+                      >
+                        <Trash2 className="w-4 h-4 text-rose-400" />
+                        <span>حذف</span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setEditingEmp(null)}
+                      className="px-4 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold text-xs cursor-pointer"
+                    >
+                      إلغاء
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* Delete Employee Confirmation Modal */}
+          {deletingEmp && (
+            <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+              <div className="w-full max-w-sm bg-zinc-900 border border-rose-500/50 rounded-3xl p-5 shadow-2xl space-y-4 text-right">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-400 shrink-0">
+                    <Trash2 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-zinc-100">تأكيد حذف الحساب نهائياً</h3>
+                    <span className="text-xs text-rose-400 font-bold block">{deletingEmp.name}</span>
+                  </div>
+                </div>
+
+                <p className="text-xs text-zinc-300 leading-relaxed bg-zinc-950 p-3 rounded-2xl border border-zinc-800">
+                  هل أنت متأكد من رغبتك في حذف حساب الموظف <b>"{deletingEmp.name}"</b> ({deletingEmp.phone})؟
+                  <br />
+                  <span className="text-rose-400 font-bold mt-1.5 block">
+                    ⚠️ سيتم حذف الحساب وكافة سجلات الحضور والأذونات والارتباط بالأجهزة نهائياً من قاعدة البيانات ولا يمكن التراجع.
+                  </span>
+                </p>
+
+                <div className="flex items-center gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={handleConfirmDeleteEmployee}
+                    disabled={deleteLoading}
+                    className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-black text-xs shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>{deleteLoading ? 'جاري الحذف...' : 'نعم، احذف الحساب الآن'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDeletingEmp(null)}
+                    disabled={deleteLoading}
+                    className="px-4 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold text-xs cursor-pointer"
+                  >
+                    إلغاء
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Quick Reset Password Modal */}
+          {resetPasswordEmp && (
+            <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+              <div className="w-full max-w-sm bg-zinc-900 border border-amber-500/50 rounded-3xl p-5 shadow-2xl space-y-4 text-right">
+                <div className="flex items-center justify-between pb-2 border-b border-zinc-800">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0">
+                      <KeyRound className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-xs font-black text-zinc-100">إعادة تعيين كلمة المرور</h3>
+                      <span className="text-[10px] text-amber-400 font-bold block">{resetPasswordEmp.name}</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setResetPasswordEmp(null)}
+                    disabled={resetPassLoading}
+                    className="p-1 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white cursor-pointer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="bg-zinc-950 p-3 rounded-2xl border border-zinc-800 space-y-2">
+                  <div className="text-[11px] text-zinc-400 flex items-center justify-between">
+                    <span>رقم الهاتف:</span>
+                    <span className="font-mono text-zinc-200 font-bold" dir="ltr">{resetPasswordEmp.phone}</span>
+                  </div>
+                  {resetPasswordEmp.sapNumber ? (
+                    <div className="text-[11px] text-zinc-400 flex items-center justify-between">
+                      <span>كود الـ SAP:</span>
+                      <span className="font-mono text-amber-400 font-bold" dir="ltr">{resetPasswordEmp.sapNumber}</span>
+                    </div>
+                  ) : null}
+                </div>
+
+                <form onSubmit={handleResetPasswordSubmit} className="space-y-3">
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="text-[11px] font-bold text-zinc-300">كلمة المرور الجديدة:</label>
+                      <button
+                        type="button"
+                        onClick={() => setResetPassInput('1234')}
+                        className="text-[10px] font-bold text-amber-400 hover:text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20 cursor-pointer"
+                      >
+                        استخدام 1234 الافتراضية
+                      </button>
+                    </div>
+                    <input
+                      type="text"
+                      value={resetPassInput}
+                      onChange={e => setResetPassInput(e.target.value)}
+                      placeholder="1234"
+                      required
+                      className="w-full p-2.5 text-sm font-black rounded-xl bg-zinc-950 border border-zinc-800 text-amber-400 focus:outline-none focus:border-amber-500 font-mono text-center tracking-widest"
+                      dir="ltr"
+                    />
+                  </div>
+
+                  <p className="text-[10px] text-zinc-400 leading-normal">
+                    💡 بمجرد الحفظ، سيتمكن الموظف من تسجيل الدخول بكلمة المرور هذه فوراً برقم هاتفه أو كود الـ SAP.
+                  </p>
+
+                  <div className="flex items-center gap-2 pt-1">
+                    <button
+                      type="submit"
+                      disabled={resetPassLoading}
+                      className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black font-black text-xs shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
+                    >
+                      <Check className="w-4 h-4 stroke-[3]" />
+                      <span>{resetPassLoading ? 'جاري التعيين...' : 'تأكيد وحفظ كلمة المرور'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setResetPasswordEmp(null)}
+                      disabled={resetPassLoading}
+                      className="px-4 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold text-xs cursor-pointer"
+                    >
+                      إلغاء
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ================= VIEW 2: ROLES & TITLES PERMISSIONS ================= */}
+      {activeSubTab === 'roles' && (
+        <div className="space-y-4 animate-fade-in">
+          {/* Header & Description */}
+          <div className="bg-zinc-900 p-4 rounded-3xl border border-zinc-800 shadow-xl space-y-2">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-black text-amber-400 flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-amber-400" />
+                <span>لوحة التحكم في صلاحيات الهرم الإداري ({titles.length} مسميات)</span>
+              </h2>
+              {isSuperAdmin && (
+                <button
+                  type="button"
+                  onClick={() => setIsAddRoleModalOpen(true)}
+                  className="py-1.5 px-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-black text-xs font-black shadow-md flex items-center gap-1 shrink-0 transition-transform active:scale-95"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>إضافة مسمى وظيفي</span>
+                </button>
+              )}
+            </div>
+            <p className="text-[11px] text-zinc-400 leading-relaxed">
+              تحكم كامل في ما يمكن لكل مسمى وظيفي رؤيته والقيام به في النظام وفق الترتيب الهرمي المعتمد.
+            </p>
+
+            {/* Notification messages */}
+            {saveSuccess && (
+              <div className="p-2.5 rounded-xl bg-emerald-950/80 border border-emerald-600/60 text-emerald-300 text-xs font-bold flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>{saveSuccess}</span>
+              </div>
+            )}
+            {saveError && (
+              <div className="p-2.5 rounded-xl bg-rose-950/80 border border-rose-600/60 text-rose-300 text-xs font-bold flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                <span>{saveError}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Titles Selector List */}
+          <div className="bg-zinc-900 p-3.5 rounded-3xl border border-zinc-800 shadow-xl space-y-2">
+            <span className="text-xs font-black text-zinc-300 block">
+              اختر المسمى الوظيفي لضبط صلاحياته (المرؤوسين فقط وفق التسلسل الهرمي):
+            </span>
+            {editableTitles.length === 0 ? (
+              <div className="p-4 bg-zinc-950 rounded-2xl border border-zinc-800 text-center text-xs text-zinc-400 font-bold">
+                🔒 لا توجد مسميات وظيفية تابعة لك في الهرم الإداري لتعديل صلاحياتها.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-1.5">
+                {editableTitles.map(title => (
+                  <button
+                    key={title.code}
+                    type="button"
+                    onClick={() => handleSelectTitle(title.code)}
+                    className={`p-2.5 rounded-2xl border text-right transition-all flex flex-col justify-between ${
+                      selectedTitleCode === title.code
+                        ? 'bg-amber-500 text-black border-amber-500 shadow-md font-black'
+                        : 'bg-zinc-950 text-zinc-300 border-zinc-800 hover:border-zinc-700'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-1">
+                      <div className="flex items-center gap-1 truncate">
+                        <span className="font-black text-xs">{title.nameAr || title.arabicTitle || title.name}</span>
+                        {(title.nameEn || title.englishTitle) && (
+                          <span dir="ltr" className={`text-[10px] font-normal truncate ${selectedTitleCode === title.code ? 'text-zinc-900 font-bold' : 'text-zinc-500'}`}>
+                            ({title.nameEn || title.englishTitle})
+                          </span>
+                        )}
+                      </div>
+                      {selectedTitleCode === title.code ? (
+                        <Check className="w-3.5 h-3.5 text-black shrink-0" />
+                      ) : (
+                        <KeyRound className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
+                      )}
+                    </div>
+                    <span className={`text-[10px] line-clamp-1 ${selectedTitleCode === title.code ? 'text-zinc-900' : 'text-zinc-500'}`}>
+                      {title.description}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Permissions Matrix Box */}
+          {activeTitle && (
+            <div className="bg-zinc-900 rounded-3xl p-5 border border-zinc-800 shadow-xl space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-zinc-800">
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <ShieldCheck className="w-5 h-5 text-amber-400 shrink-0" />
+                    <h3 className="font-black text-sm text-zinc-100 flex items-center gap-1.5 flex-wrap">
+                      <span>صلاحيات مسمى:</span>
+                      <span className="text-amber-400">"{activeTitle.nameAr || activeTitle.name}"</span>
+                      {(activeTitle.nameEn || activeTitle.englishTitle) && (
+                        <span dir="ltr" className="text-zinc-400 text-xs font-normal">
+                          ({activeTitle.nameEn || activeTitle.englishTitle})
+                        </span>
+                      )}
+                    </h3>
+                    {isSuperAdmin && (
+                      <div className="flex items-center gap-1 mr-2">
+                        <button
+                          type="button"
+                          onClick={() => openEditRoleModal(activeTitle)}
+                          className="p-1.5 text-zinc-400 hover:text-amber-400 hover:bg-zinc-800 rounded-lg transition-colors"
+                          title="تعديل اسم ووصف المسمى الوظيفي"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        {!activeTitle.isSystemAdmin && activeTitle.code !== 'executive_director' && (
+                          <button
+                            type="button"
+                            onClick={handleDeleteRole}
+                            disabled={roleActionLoading}
+                            className="p-1.5 text-zinc-400 hover:text-rose-400 hover:bg-zinc-800 rounded-lg transition-colors"
+                            title="حذف هذا المسمى الوظيفي"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-xs text-zinc-400 mt-0.5">{activeTitle.description}</p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleSavePermissions}
+                  disabled={loading}
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black text-xs font-black shadow-md shadow-amber-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 shrink-0"
+                >
+                  <Save className="w-4 h-4 text-black" />
+                  <span>{loading ? 'جاري الحفظ...' : 'حفظ التعديلات'}</span>
+                </button>
+              </div>
+
+              {/* Grouped Permission Items */}
+              <div className="space-y-4">
+                {categories.map(category => {
+                  const items = permissionDefs.filter(p => p.category === category);
+                  if (items.length === 0) return null;
+
+                  return (
+                    <div key={category} className="space-y-2">
+                      <span className="text-xs font-black text-amber-400 uppercase tracking-wider block">
+                        {category}
+                      </span>
+
+                      <div className="grid gap-2">
+                        {items.map(def => {
+                          const isEnabled = Boolean(permissionsState[def.key]);
+
+                          return (
+                            <div
+                              key={def.key}
+                              onClick={() => handleTogglePermission(def.key)}
+                              className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                                isEnabled
+                                  ? 'bg-zinc-950 border-amber-500/40 text-zinc-100'
+                                  : 'bg-zinc-950/50 border-zinc-800/80 text-zinc-500 opacity-60'
+                              }`}
+                            >
+                              <div className="space-y-0.5">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-bold text-zinc-200">{def.label}</span>
+                                  <span className={`text-[9px] px-1.5 py-0.5 rounded-md font-black ${
+                                    isEnabled ? 'bg-amber-500 text-black' : 'bg-zinc-800 text-zinc-400'
+                                  }`}>
+                                    {isEnabled ? 'مفعل' : 'معطل'}
+                                  </span>
+                                </div>
+                                <p className="text-[11px] text-zinc-400 leading-relaxed">
+                                  {def.description}
+                                </p>
+                              </div>
+
+                              {/* Toggle switch */}
+                              <div
+                                className={`w-11 h-6 rounded-full transition-colors relative shrink-0 ${
+                                  isEnabled ? 'bg-amber-500' : 'bg-zinc-800'
+                                }`}
+                              >
+                                <div
+                                  className={`w-5 h-5 rounded-full bg-zinc-950 shadow-sm transition-transform absolute top-0.5 ${
+                                    isEnabled ? 'left-0.5' : 'right-0.5'
+                                  }`}
+                                />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Bottom Save Action */}
+              <div className="pt-3 border-t border-zinc-800 flex justify-end">
+                <button
+                  type="button"
+                  onClick={handleSavePermissions}
+                  disabled={loading}
+                  className="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black text-xs font-black shadow-md shadow-amber-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                >
+                  <Save className="w-4 h-4 text-black" />
+                  <span>{loading ? 'جاري الحفظ...' : 'حفظ صلاحيات هذا المسمى'}</span>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Add Role Modal */}
+      {isAddRoleModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 w-full max-w-md shadow-2xl space-y-4 animate-scale-up">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-amber-400" />
+                <h3 className="font-black text-sm text-zinc-100">إضافة مسمى وظيفي جديد</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAddRoleModalOpen(false)}
+                className="p-1.5 text-zinc-400 hover:text-zinc-200 rounded-lg hover:bg-zinc-800"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateRole} className="space-y-3">
+              <div>
+                <label className="block text-[11px] font-bold text-zinc-400 mb-1">
+                  المسمى بالعربية (مثلاً: مشرف عمليات، أخصائي مالي):
+                </label>
+                <input
+                  type="text"
+                  placeholder="المسمى بالعربية"
+                  value={newRoleForm.nameAr}
+                  onChange={e => setNewRoleForm({ ...newRoleForm, nameAr: e.target.value })}
+                  className="w-full p-2.5 text-xs font-bold rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 focus:outline-none focus:border-amber-500"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-zinc-400 mb-1">
+                  المسمى بالإنجليزية (مثلاً: Operations Supervisor):
+                </label>
+                <input
+                  type="text"
+                  dir="ltr"
+                  placeholder="English Job Title"
+                  value={newRoleForm.nameEn}
+                  onChange={e => setNewRoleForm({ ...newRoleForm, nameEn: e.target.value })}
+                  className="w-full p-2.5 text-xs font-bold rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 focus:outline-none focus:border-amber-500 text-left"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-zinc-400 mb-1">الوصف والمسؤوليات:</label>
+                <textarea
+                  rows="2"
+                  placeholder="وصف مختصر لدور هذا المسمى في النظام..."
+                  value={newRoleForm.description}
+                  onChange={e => setNewRoleForm({ ...newRoleForm, description: e.target.value })}
+                  className="w-full p-2.5 text-xs font-bold rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-zinc-400 mb-1">
+                  المستوى الإداري (1 = إدارة عليا، 5 = موظف تنفيذي):
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="10"
+                  value={newRoleForm.level}
+                  onChange={e => setNewRoleForm({ ...newRoleForm, level: parseInt(e.target.value, 10) || 4 })}
+                  className="w-full p-2.5 text-xs font-mono font-bold rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 focus:outline-none focus:border-amber-500"
+                  required
+                />
+              </div>
+
+              <div className="flex items-center gap-2 pt-2">
+                <button
+                  type="submit"
+                  disabled={roleActionLoading}
+                  className="flex-1 py-3 rounded-2xl bg-amber-500 hover:bg-amber-400 text-black font-black text-xs shadow-md transition-all flex items-center justify-center gap-1.5"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>{roleActionLoading ? 'جاري الحفظ...' : 'إنشاء المسمى'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsAddRoleModalOpen(false)}
+                  className="py-3 px-4 rounded-2xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold text-xs"
+                >
+                  إلغاء
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Role Modal */}
+      {isEditRoleModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 w-full max-w-md shadow-2xl space-y-4 animate-scale-up">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Edit2 className="w-5 h-5 text-amber-400" />
+                <h3 className="font-black text-sm text-zinc-100">تعديل المسمى الوظيفي</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsEditRoleModalOpen(false)}
+                className="p-1.5 text-zinc-400 hover:text-zinc-200 rounded-lg hover:bg-zinc-800"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateRole} className="space-y-3">
+              <div>
+                <label className="block text-[11px] font-bold text-zinc-400 mb-1">المسمى بالعربية:</label>
+                <input
+                  type="text"
+                  value={editRoleForm.nameAr}
+                  onChange={e => setEditRoleForm({ ...editRoleForm, nameAr: e.target.value })}
+                  className="w-full p-2.5 text-xs font-bold rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 focus:outline-none focus:border-amber-500"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-zinc-400 mb-1">المسمى بالإنجليزية:</label>
+                <input
+                  type="text"
+                  dir="ltr"
+                  value={editRoleForm.nameEn}
+                  onChange={e => setEditRoleForm({ ...editRoleForm, nameEn: e.target.value })}
+                  className="w-full p-2.5 text-xs font-bold rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 focus:outline-none focus:border-amber-500 text-left"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-zinc-400 mb-1">الوصف والمسؤوليات:</label>
+                <textarea
+                  rows="2"
+                  value={editRoleForm.description}
+                  onChange={e => setEditRoleForm({ ...editRoleForm, description: e.target.value })}
+                  className="w-full p-2.5 text-xs font-bold rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-zinc-400 mb-1">المستوى الإداري:</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="10"
+                  value={editRoleForm.level}
+                  onChange={e => setEditRoleForm({ ...editRoleForm, level: parseInt(e.target.value, 10) || 4 })}
+                  className="w-full p-2.5 text-xs font-mono font-bold rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 focus:outline-none focus:border-amber-500"
+                  required
+                />
+              </div>
+
+              <div className="flex items-center gap-2 pt-2">
+                <button
+                  type="submit"
+                  disabled={roleActionLoading}
+                  className="flex-1 py-3 rounded-2xl bg-amber-500 hover:bg-amber-400 text-black font-black text-xs shadow-md transition-all flex items-center justify-center gap-1.5"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>{roleActionLoading ? 'جاري الحفظ...' : 'حفظ التعديلات'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsEditRoleModalOpen(false)}
+                  className="py-3 px-4 rounded-2xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold text-xs"
+                >
+                  إلغاء
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

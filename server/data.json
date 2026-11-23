@@ -1,0 +1,167 @@
+{
+  "officeSettings": {
+    "companyName": "اسم الشركة",
+    "shiftHours": 8,
+    "graceMinutes": 15,
+    "workStartTime": "09:00",
+    "workEndTime": "17:00"
+  },
+  "branches": [
+    {
+      "id": "branch_main",
+      "code": "main_branch",
+      "name": "الفرع الرئيسي",
+      "city": "القاهرة",
+      "latitude": 30.0444,
+      "longitude": 31.2357,
+      "radiusMeters": 100,
+      "sectorId": "sector_main",
+      "sectorName": "القطاع الرئيسي",
+      "isArchived": false
+    }
+  ],
+  "titles": [
+    {
+      "id": "title_executive_director",
+      "code": "executive_director",
+      "name": "المدير التنفيذي (Executive Director)",
+      "nameAr": "المدير التنفيذي",
+      "nameEn": "Executive Director",
+      "arabicTitle": "المدير التنفيذي",
+      "englishTitle": "Executive Director",
+      "description": "صلاحيات تنفيذية عليا وشاملة لإدارة النظام والفروع والموظفين والتقارير",
+      "color": "amber",
+      "order": 1,
+      "level": 1,
+      "isSystemAdmin": true,
+      "permissions": {
+        "check_in_out": true,
+        "view_own_attendance": true,
+        "view_office_presence": true,
+        "request_leave": true,
+        "request_permission": true,
+        "approve_leaves_permissions": true,
+        "approve_early_checkout": true,
+        "manage_employees": true,
+        "manage_titles_permissions": true,
+        "manage_office_settings": true,
+        "view_reports": true,
+        "view_all_branches": true,
+        "override_early_checkout": true,
+        "edit_employee_details": true
+      }
+    },
+    {
+      "id": "title_area_manager",
+      "code": "area_manager",
+      "name": "مدير قطاع / منطقة (Area Manager)",
+      "nameAr": "مدير قطاع / منطقة",
+      "nameEn": "Area Manager",
+      "arabicTitle": "مدير قطاع / منطقة",
+      "englishTitle": "Area Manager",
+      "description": "متابعة وإشراف على فروع القطاع واعتماد الإجازات والأذونات والانصراف المبكر",
+      "color": "yellow",
+      "order": 2,
+      "level": 2,
+      "isSystemAdmin": false,
+      "permissions": {
+        "check_in_out": true,
+        "view_own_attendance": true,
+        "view_office_presence": true,
+        "request_leave": true,
+        "request_permission": true,
+        "approve_leaves_permissions": true,
+        "approve_early_checkout": true,
+        "manage_employees": true,
+        "manage_titles_permissions": false,
+        "manage_office_settings": false,
+        "view_reports": true,
+        "view_all_branches": false,
+        "override_early_checkout": true,
+        "edit_employee_details": true
+      }
+    },
+    {
+      "id": "title_branch_manager",
+      "code": "branch_manager",
+      "name": "مدير فرع / مشرف (Branch Manager)",
+      "nameAr": "مدير فرع / مشرف",
+      "nameEn": "Branch Manager",
+      "arabicTitle": "مدير فرع / مشرف",
+      "englishTitle": "Branch Manager",
+      "description": "إدارة ومتابعة حضور وانصراف موظفي الفرع واعتماد الطلبات الداخلية",
+      "color": "emerald",
+      "order": 3,
+      "level": 3,
+      "isSystemAdmin": false,
+      "permissions": {
+        "check_in_out": true,
+        "view_own_attendance": true,
+        "view_office_presence": true,
+        "request_leave": true,
+        "request_permission": true,
+        "approve_leaves_permissions": true,
+        "approve_early_checkout": false,
+        "manage_employees": true,
+        "manage_titles_permissions": false,
+        "manage_office_settings": false,
+        "view_reports": true,
+        "view_all_branches": false,
+        "override_early_checkout": false,
+        "edit_employee_details": false
+      }
+    },
+    {
+      "id": "title_employee",
+      "code": "employee",
+      "name": "موظف (Employee)",
+      "nameAr": "موظف",
+      "nameEn": "Employee",
+      "arabicTitle": "موظف",
+      "englishTitle": "Employee",
+      "description": "تسجيل الحضور والانصراف بالـ GPS وتقديم طلبات الإجازات والأذونات ومتابعة السجل الشخصي",
+      "color": "zinc",
+      "order": 4,
+      "level": 4,
+      "isSystemAdmin": false,
+      "permissions": {
+        "check_in_out": true,
+        "view_own_attendance": true,
+        "view_office_presence": true,
+        "request_leave": true,
+        "request_permission": true,
+        "approve_leaves_permissions": false,
+        "approve_early_checkout": false,
+        "manage_employees": false,
+        "manage_titles_permissions": false,
+        "manage_office_settings": false,
+        "view_reports": false,
+        "view_all_branches": false,
+        "override_early_checkout": false,
+        "edit_employee_details": false
+      }
+    }
+  ],
+  "employees": [
+    {
+      "id": "emp_admin",
+      "name": "المدير العام",
+      "titleCode": "executive_director",
+      "jobTitle": "المدير التنفيذي (Executive Director)",
+      "branchId": "branch_main",
+      "phone": "01000000000",
+      "password": "admin",
+      "pin": "admin",
+      "weeklyOffDays": [
+        "friday",
+        "saturday"
+      ],
+      "leaveBalance": 21,
+      "permissionsBalanceHours": 2,
+      "isSuperAdmin": true,
+      "createdAt": "2026-11-21T23:11:08.049Z"
+    }
+  ],
+  "attendanceRecords": [],
+  "requests": []
+}
