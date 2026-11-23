@@ -4,30 +4,30 @@ const mongoose = require('mongoose');
 const PLANS = {
   starter: {
     code: 'starter',
-    nameAr: 'باقة البداية (Starter)',
-    priceMonthly: 1000,
-    priceYearly: 10000,
+    nameAr: 'باقة الانطلاق (Starter)',
+    priceMonthly: 349,
+    priceYearly: 3490,
     maxEmployees: 15,
     maxBranches: 1,
-    description: 'مثالية للعيادات، الصيدليات، والمكاتب الصغيرة (حتى 15 موظف وفرع واحد)'
+    description: 'مثالية للشركات الناشئة والمكاتب الفردية والعيادات (حتى 15 موظف وفرع واحد)'
   },
   growth: {
     code: 'growth',
     nameAr: 'باقة النمو (Growth)',
-    priceMonthly: 3000,
-    priceYearly: 30000,
+    priceMonthly: 849,
+    priceYearly: 8490,
     maxEmployees: 50,
-    maxBranches: 3,
-    description: 'مثالية للشركات المتوسطة، سلاسل المطاعم، والمتاجر (حتى 50 موظف و3 فروع)'
+    maxBranches: 5,
+    description: 'الخيار الأفضل للشركات المتوسطة وسلاسل الفروع (حتى 50 موظف و5 فروع)'
   },
   enterprise: {
     code: 'enterprise',
     nameAr: 'باقة المؤسسات (Enterprise)',
-    priceMonthly: 5000,
-    priceYearly: 50000,
-    maxEmployees: 120,
+    priceMonthly: 1599,
+    priceYearly: 15990,
+    maxEmployees: 100,
     maxBranches: 999,
-    description: 'مثالية للمصانع وسلاسل المحلات الكبيرة (حتى 120 موظف وفروع غير محدودة)'
+    description: 'مثالية للمؤسسات والشركات الكبرى (حتى 100 موظف وفروع غير محدودة)'
   }
 };
 

@@ -498,7 +498,7 @@ export function SaasGodModeDashboard({ onExit }) {
 
                           <td className="p-3.5">
                             <span className="bg-zinc-800 text-zinc-200 border border-zinc-700 px-2 py-0.5 rounded-md font-bold text-[11px]">
-                              {t.plan === 'enterprise' ? 'المؤسسات (5000)' : t.plan === 'growth' ? 'النمو (3000)' : 'البداية (1000)'}
+                              {t.plan === 'enterprise' ? 'المؤسسات (1599)' : t.plan === 'growth' ? 'النمو (849)' : 'الانطلاق (349)'}
                             </span>
                           </td>
 
@@ -687,9 +687,9 @@ export function SaasGodModeDashboard({ onExit }) {
                   onChange={(e) => setActionPlan(e.target.value)}
                   className="w-full bg-zinc-950 border border-zinc-700 text-white p-2.5 rounded-xl outline-none"
                 >
-                  <option value="starter">باقة البداية (1,000 ج.م / 15 موظف)</option>
-                  <option value="growth">باقة النمو (3,000 ج.م / 50 موظف)</option>
-                  <option value="enterprise">باقة المؤسسات (5,000 ج.م / 120 موظف)</option>
+                  <option value="starter">باقة الانطلاق (349 ج.م / 15 موظف)</option>
+                  <option value="growth">باقة النمو (849 ج.م / 50 موظف)</option>
+                  <option value="enterprise">باقة المؤسسات (1,599 ج.م / 100 موظف)</option>
                 </select>
               </div>
 
