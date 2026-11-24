@@ -528,16 +528,7 @@ router.get('/settings', async (req, res) => {
     const tenantId = req.tenantId || req.user?.tenantId || 'default';
     const settings = await db.getOfficeSettings(tenantId);
     const branches = await db.getBranches(tenantId);
-    res.json({ 
-      success: true, 
-      debug: {
-        reqTenantId: req.tenantId || null,
-        reqTenantSlug: req.tenantSlug || null,
-        headerSlug: req.headers['x-tenant-slug'] || null
-      },
-      settings, 
-      branches 
-    });
+    res.json({ success: true, settings, branches });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }

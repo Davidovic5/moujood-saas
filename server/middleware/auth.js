@@ -35,7 +35,9 @@ async function authenticateUser(req, res, next) {
   if (req.query && 'tenantId' in req.query) delete req.query.tenantId;
   if (req.params && 'tenantId' in req.params) delete req.params.tenantId;
 
-  req.tenantId = DEFAULT_TENANT_ID;
+  // Preserve already resolved tenant from upstream resolveTenant middleware
+  const existingTenantId = req.tenantId || (req.tenant ? req.tenant.tenantId : null);
+  req.tenantId = existingTenantId || DEFAULT_TENANT_ID;
   req.user = null;
 
   const authHeader = req.headers.authorization;
@@ -44,7 +46,7 @@ async function authenticateUser(req, res, next) {
     try {
       const decoded = jwt.verify(token, JWT_SECRET);
       req.user = decoded;
-      req.tenantId = decoded.tenantId || DEFAULT_TENANT_ID;
+      req.tenantId = decoded.tenantId || req.tenantId;
       return next();
     } catch (err) {
       // Invalid/expired token, fallback below to session headers if available
@@ -68,12 +70,12 @@ async function authenticateUser(req, res, next) {
         req.user = {
           userId: String(emp.id),
           phone: emp.phone,
-          tenantId: emp.tenantId || DEFAULT_TENANT_ID,
+          tenantId: emp.tenantId || req.tenantId,
           titleCode: emp.titleCode,
           isSuperAdmin: isSuper,
           boundDeviceId: emp.boundDeviceId || null
         };
-        req.tenantId = emp.tenantId || DEFAULT_TENANT_ID;
+        req.tenantId = emp.tenantId || req.tenantId;
         return next();
       }
     } catch (dbErr) {
