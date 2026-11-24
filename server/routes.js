@@ -54,7 +54,8 @@ router.get('/sectors', async (req, res) => {
 
 router.get('/branches', async (req, res) => {
   try {
-    const branches = await db.getBranches();
+    const tenantId = req.tenantId || req.user?.tenantId || 'default';
+    const branches = await db.getBranches(tenantId);
     res.json({ success: true, branches });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -619,7 +620,8 @@ router.post('/settings/verify-distance', async (req, res) => {
 // 2. Titles & Permissions
 router.get('/titles', async (req, res) => {
   try {
-    const titles = await db.getTitles();
+    const tenantId = req.tenantId || req.user?.tenantId || 'default';
+    const titles = await db.getTitles(false, tenantId);
     res.json({ success: true, titles });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
