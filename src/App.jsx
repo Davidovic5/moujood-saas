@@ -98,6 +98,23 @@ export default function App() {
       return null;
     }
   });
+
+  // SaaS Platform States
+  const [showGodMode, setShowGodMode] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.location.pathname === '/saas-admin' || 
+           window.location.search.includes('saas_god_mode=1') ||
+           window.location.hostname.startsWith('admin.');
+  });
+  const [showRegisterModal, setShowRegisterModal] = useState(false);
+  const [selectedPlanForRegister, setSelectedPlanForRegister] = useState('growth');
+  const [tenantSlug, setTenantSlug] = useState(() => getResolvedSubdomain());
+  const [isExplicitAppView, setIsExplicitAppView] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return Boolean(localStorage.getItem('office_auth_user') || new URLSearchParams(window.location.search).get('app') === '1');
+  });
+  const [subscriptionLock, setSubscriptionLock] = useState(null);
+
   const [officeSettings, setOfficeSettings] = useState(() => {
     const cached = getCachedBranding();
     return {
@@ -194,22 +211,6 @@ export default function App() {
   const [isPushGranted, setIsPushGranted] = useState(() => {
     return typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted';
   });
-
-  // SaaS Platform States
-  const [showGodMode, setShowGodMode] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    return window.location.pathname === '/saas-admin' || 
-           window.location.search.includes('saas_god_mode=1') ||
-           window.location.hostname.startsWith('admin.');
-  });
-  const [showRegisterModal, setShowRegisterModal] = useState(false);
-  const [selectedPlanForRegister, setSelectedPlanForRegister] = useState('growth');
-  const [tenantSlug, setTenantSlug] = useState(() => getResolvedSubdomain());
-  const [isExplicitAppView, setIsExplicitAppView] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    return Boolean(localStorage.getItem('office_auth_user') || new URLSearchParams(window.location.search).get('app') === '1');
-  });
-  const [subscriptionLock, setSubscriptionLock] = useState(null);
 
   // Check Subscription Status on mount
   useEffect(() => {
