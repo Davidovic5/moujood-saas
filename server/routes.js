@@ -94,7 +94,7 @@ router.delete('/branches/:id', requireAuth, requirePermission('manage_office_set
 });
 
 // Authentication & Registration
-router.post('/auth/register', async (req, res) => {
+router.post('/auth/register', enforceEmployeeLimit, async (req, res) => {
   try {
     const { name, phone, sapNumber, pin, password, titleCode, jobTitle, branchId, sectorId, sectorName, weeklyOffDays, avatar, deviceId, deviceInfo } = req.body;
     if (!name || !phone) {
@@ -107,7 +107,10 @@ router.post('/auth/register', async (req, res) => {
       }
     }
 
+    const targetTenantId = req.tenantId || req.tenant?.tenantId || 'default';
+
     const employee = await db.registerEmployee({
+      tenantId: targetTenantId,
       name,
       phone,
       sapNumber: sapNumber || "",
@@ -122,9 +125,9 @@ router.post('/auth/register', async (req, res) => {
       avatar: avatar || null,
       deviceId: deviceId || null,
       deviceInfo: deviceInfo || null
-    }, req.tenantId);
+    }, targetTenantId);
 
-    const token = signUserToken(employee, req.tenantId);
+    const token = signUserToken(employee, targetTenantId);
 
     res.json({
       success: true,
@@ -700,7 +703,11 @@ router.get('/employees/:id', async (req, res) => {
 
 router.post('/employees', enforceEmployeeLimit, async (req, res) => {
   try {
-    const newEmp = await db.registerEmployee(req.body);
+    const targetTenantId = req.tenantId || req.tenant?.tenantId || 'default';
+    const newEmp = await db.registerEmployee({
+      ...req.body,
+      tenantId: targetTenantId
+    }, targetTenantId);
     res.json({ success: true, employee: newEmp, message: "تمت إضافة الموظف بنجاح" });
   } catch (err) {
     res.status(400).json({ success: false, error: err.message });

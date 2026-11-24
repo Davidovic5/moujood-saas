@@ -843,25 +843,26 @@ class MongoDatabaseAdapter {
     };
   }
 
-  async registerEmployee(empData) {
+  async registerEmployee(empData, tenantIdOverride = null) {
     await this.ensureConnected();
+    const targetTenantId = tenantIdOverride || empData.tenantId || this.tenantId || 'default';
     const cleanPhone = empData.phone.trim();
     const cleanSap = empData.sapNumber ? String(empData.sapNumber).trim() : "";
-    const existing = await Employee.findOne({ phone: cleanPhone });
+    const existing = await Employee.findOne({ tenantId: targetTenantId, phone: cleanPhone });
     if (existing) {
       throw new Error(`رقم الهاتف (${empData.phone}) مسجل بالفعل لموظف آخر.`);
     }
     if (cleanSap) {
-      const existingSap = await Employee.findOne({ sapNumber: cleanSap });
+      const existingSap = await Employee.findOne({ tenantId: targetTenantId, sapNumber: cleanSap });
       if (existingSap) {
         throw new Error(`كود الـ SAP (${cleanSap}) مسجل بالفعل لموظف آخر (${existingSap.name}).`);
       }
     }
 
-    // Strict 1 Device = 1 Employee: Prevent creating an account on a device already bound to an employee
+    // Strict 1 Device = 1 Employee: Prevent creating an account on a device already bound to an employee in this tenant
     const incomingDeviceId = empData.deviceId ? String(empData.deviceId).trim() : "";
     if (incomingDeviceId) {
-      const existingDevice = await Employee.findOne({ boundDeviceId: incomingDeviceId }).lean();
+      const existingDevice = await Employee.findOne({ tenantId: targetTenantId, boundDeviceId: incomingDeviceId }).lean();
       if (existingDevice) {
         throw new Error("هذا الهاتف مسجل عليه حساب موظف بالفعل. يرجى تسجيل الدخول بحسابك أو مراجعة الإدارة.");
       }
@@ -875,6 +876,7 @@ class MongoDatabaseAdapter {
 
     const newEmp = new Employee({
       id: "emp_" + Date.now(),
+      tenantId: targetTenantId,
       name: empData.name.trim(),
       phone: cleanPhone,
       sapNumber: cleanSap,
@@ -899,8 +901,8 @@ class MongoDatabaseAdapter {
     await newEmp.save();
 
     const [titleObj, branchObj] = await Promise.all([
-      Title.findOne({ code: newEmp.titleCode }).lean(),
-      Branch.findOne({ id: newEmp.branchId }).lean()
+      Title.findOne({ tenantId: targetTenantId, code: newEmp.titleCode }).lean(),
+      Branch.findOne({ tenantId: targetTenantId, id: newEmp.branchId }).lean()
     ]);
 
     return {

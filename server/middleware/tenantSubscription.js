@@ -32,9 +32,12 @@ async function resolveTenant(req, res, next) {
       slug = String(req.headers['x-tenant-slug']).trim().toLowerCase();
     }
 
-    // B. Check query parameter (?tenant=slug) - very helpful for local dev & testing
+    // B. Check query parameter (?tenant=slug) or body
     if (!slug && req.query && req.query.tenant) {
       slug = String(req.query.tenant).trim().toLowerCase();
+    }
+    if (!slug && req.body && req.body.tenantSlug) {
+      slug = String(req.body.tenantSlug).trim().toLowerCase();
     }
 
     // C. Check Host header (e.g. acme.attendance.com -> acme)
@@ -170,12 +173,16 @@ async function checkSubscription(req, res, next) {
  */
 async function enforceEmployeeLimit(req, res, next) {
   try {
-    const tenant = req.tenant;
+    let tenant = req.tenant;
+    const tenantId = req.tenantId || req.tenant?.tenantId;
+    if (!tenant && tenantId) {
+      tenant = await Tenant.findOne({ tenantId });
+    }
     if (!tenant) return next();
 
     const maxAllowed = tenant.maxEmployees || 15;
     const currentCount = await Employee.countDocuments({ 
-      tenantId: req.tenantId, 
+      tenantId: tenant.tenantId, 
       isSuperAdmin: { $ne: true } 
     });
 
@@ -183,7 +190,7 @@ async function enforceEmployeeLimit(req, res, next) {
       return res.status(400).json({
         success: false,
         code: 'EMPLOYEE_LIMIT_REACHED',
-        error: `لقد وصلت إلى الحد الأقصى للموظفين المسموح به في باقتك الحالية (${maxAllowed} موظف). يرجى ترقية باقتك لإضافة المزيد.`
+        error: `لقد وصلت إلى الحد الأقصى للموظفين المسموح به في باقتك الحالية (${maxAllowed} موظف). يرجى ترقية باقتك لإضافة المزيد من الموظفين.`
       });
     }
 
