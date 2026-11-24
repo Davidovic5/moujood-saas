@@ -366,14 +366,23 @@ class MongoDatabaseAdapter {
     await this.ensureConnected();
     let s = await OfficeSettings.findOne({ tenantId }).lean();
     if (!s) {
+      const t = await Tenant.findOne({ $or: [{ tenantId }, { slug: tenantId }] }).lean();
       s = await OfficeSettings.create({
         tenantId,
-        companyName: "اسم الشركة",
+        companyName: t?.branding?.companyName || t?.name || "اسم الشركة",
+        logoUrl: t?.branding?.logoUrl || "/brand/logo.svg",
         shiftHours: 8,
         graceMinutes: 15,
         workStartTime: "09:00",
         workEndTime: "17:00"
       });
+    } else if (!s.logoUrl) {
+      const t = await Tenant.findOne({ $or: [{ tenantId }, { slug: tenantId }] }).lean();
+      if (t?.branding?.logoUrl) {
+        s.logoUrl = t.branding.logoUrl;
+      } else {
+        s.logoUrl = "/brand/logo.svg";
+      }
     }
     return s;
   }
@@ -386,6 +395,22 @@ class MongoDatabaseAdapter {
       { $set: newSettings },
       { new: true, upsert: true }
     ).lean();
+
+    // If companyName or logoUrl changed, keep Tenant.branding in sync
+    if (newSettings.companyName || newSettings.logoUrl) {
+      const tenantUpdates = {};
+      if (newSettings.companyName) {
+        tenantUpdates['name'] = newSettings.companyName;
+        tenantUpdates['branding.companyName'] = newSettings.companyName;
+      }
+      if (newSettings.logoUrl) {
+        tenantUpdates['branding.logoUrl'] = newSettings.logoUrl;
+      }
+      await Tenant.updateOne(
+        { $or: [{ tenantId }, { slug: tenantId }] },
+        { $set: tenantUpdates }
+      );
+    }
 
     logAudit({
       tenantId,

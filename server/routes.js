@@ -522,8 +522,9 @@ router.get('/reports/monthly', async (req, res) => {
 // 1. Office Settings
 router.get('/settings', async (req, res) => {
   try {
-    const settings = await db.getOfficeSettings();
-    const branches = await db.getBranches();
+    const tenantId = req.tenantId || req.user?.tenantId || 'default';
+    const settings = await db.getOfficeSettings(tenantId);
+    const branches = await db.getBranches(tenantId);
     res.json({ success: true, settings, branches });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -532,7 +533,8 @@ router.get('/settings', async (req, res) => {
 
 router.post('/settings', requireAuth, requirePermission('manage_office_settings'), async (req, res) => {
   try {
-    const updated = await db.updateOfficeSettings(req.body, req.tenantId, req.user);
+    const tenantId = req.tenantId || req.user?.tenantId || 'default';
+    const updated = await db.updateOfficeSettings(req.body, tenantId, req.user);
     res.json({ success: true, settings: updated, message: "تم تحديث إعدادات المكتب بنجاح" });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });

@@ -58,6 +58,7 @@ import { formatArabicDateWithDay } from './utils/dateHelpers';
 import { registerPushNotifications } from './utils/pushNotifications';
 import { getInitialTheme, applyTheme } from './utils/themeHelper';
 import { checkBiometricSupport, registerBiometrics } from './utils/biometricHelper';
+import { updateAppBranding, getCachedBranding } from './utils/appBranding';
 
 const DAYS_OF_WEEK = [
   { id: 'saturday', name: 'السبت' },
@@ -97,13 +98,24 @@ export default function App() {
       return null;
     }
   });
-  const [officeSettings, setOfficeSettings] = useState({
-    companyName: companyConfig.companyName,
-    shiftHours: companyConfig.defaults.shiftHours,
-    graceMinutes: 15,
-    workStartTime: '09:00',
-    workEndTime: '17:00'
+  const [officeSettings, setOfficeSettings] = useState(() => {
+    const cached = getCachedBranding();
+    return {
+      companyName: cached.companyName || companyConfig.companyName,
+      logoUrl: cached.logoUrl || companyConfig.logoPath,
+      shiftHours: companyConfig.defaults.shiftHours,
+      graceMinutes: 15,
+      workStartTime: '09:00',
+      workEndTime: '17:00'
+    };
   });
+
+  // Sync document title, favicon, and brand metadata dynamically
+  useEffect(() => {
+    if (officeSettings) {
+      updateAppBranding(officeSettings.companyName, officeSettings.logoUrl);
+    }
+  }, [officeSettings.companyName, officeSettings.logoUrl]);
   const [activeTab, setActiveTab] = useState('check_in');
   const [loading, setLoading] = useState(false);
   
@@ -933,15 +945,22 @@ export default function App() {
         <div className="max-w-lg mx-auto flex items-center justify-between gap-2">
           {/* Brand Logo & Branch Badge */}
           <div className="flex items-center gap-2 min-w-0 flex-1">
-            <div className="w-8 h-8 flex items-center justify-center shrink-0">
+            <div className="w-8 h-8 rounded-xl bg-zinc-900 border border-white/[0.1] p-1 flex items-center justify-center shrink-0 overflow-hidden">
               <img 
-                src={companyConfig.logoPath} 
-                alt={companyConfig.companyName} 
+                src={officeSettings.logoUrl || companyConfig.logoPath} 
+                alt={officeSettings.companyName || companyConfig.companyName} 
                 className="w-full h-full object-contain filter drop-shadow-[0_2px_8px_rgba(16,185,129,0.3)]" 
               />
             </div>
             <div className="min-w-0">
-              <h1 className="text-xs font-black text-white leading-tight truncate">{companyConfig.companyName}</h1>
+              <div className="flex items-center gap-1.5 truncate">
+                <h1 className="text-xs font-black text-white leading-tight truncate">
+                  {officeSettings.companyName || companyConfig.companyName}
+                </h1>
+                <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700/80 shrink-0">
+                  Office Attendance
+                </span>
+              </div>
               <span className="text-[10px] text-zinc-400 font-bold flex items-center gap-1 mt-0.5 truncate">
                 <MapPin className="w-2.5 h-2.5 text-emerald-400 shrink-0" />
                 <span className="truncate">فرع {currentUser?.branchName || branches[0]?.name || companyConfig.entitySingular}</span>

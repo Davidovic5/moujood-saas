@@ -34,6 +34,7 @@ import { DEFAULT_SECTORS } from '../utils/userScope';
 import { getInitialTheme, applyTheme } from '../utils/themeHelper';
 import { checkBiometricSupport, authenticateWithBiometrics } from '../utils/biometricHelper';
 import { companyConfig } from '../config/company.config';
+import { getCachedBranding } from '../utils/appBranding';
 
 const DAYS_OF_WEEK = [
   { id: 'friday', name: 'الجمعة' },
@@ -49,6 +50,7 @@ const DAYS_OF_WEEK = [
 const DEFAULT_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23F5B800'><path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z'/></svg>";
 
 export function AuthScreen({ titles, branches, officeSettings, onAuthSuccess }) {
+  const brand = officeSettings?.companyName ? officeSettings : getCachedBranding();
   const [isInstalledApp, setIsInstalledApp] = useState(() => checkIsInstalledApp());
   const [webBypass, setWebBypass] = useState(true);
   const [authMode, setAuthMode] = useState('login'); // 'login' | 'register'
@@ -438,16 +440,23 @@ export function AuthScreen({ titles, branches, officeSettings, onAuthSuccess }) 
 
           {/* Brand Header */}
           <div className="text-center mb-5">
-            <div className="w-20 h-24 mx-auto mb-2 flex items-center justify-center">
+            <div className="w-16 h-16 mx-auto mb-2.5 rounded-2xl bg-zinc-900 border border-white/[0.1] p-1.5 flex items-center justify-center overflow-hidden">
               <img 
-                src={companyConfig.logoPath} 
-                alt={companyConfig.companyName} 
+                src={brand.logoUrl || companyConfig.logoPath} 
+                alt={brand.companyName || companyConfig.companyName} 
                 className="w-full h-full object-contain filter drop-shadow-[0_4px_14px_rgba(16,185,129,0.3)]" 
               />
             </div>
-            <h1 className="text-lg font-black text-white tracking-wide">{companyConfig.companyName}</h1>
-            <p className="text-[11px] text-zinc-400 font-bold tracking-wider uppercase mt-0.5">
-              {companyConfig.companyName} • نظام الحضور والغياب الذكي
+            <div className="flex items-center justify-center gap-1.5">
+              <h1 className="text-lg font-black text-white tracking-wide">
+                {brand.companyName || companyConfig.companyName}
+              </h1>
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">
+                Office Attendance
+              </span>
+            </div>
+            <p className="text-[11px] text-zinc-400 font-bold tracking-wider mt-1">
+              منظومة تسجيل الحضور والانصراف بالـ GPS والتحقق البيومتري
             </p>
           </div>
 

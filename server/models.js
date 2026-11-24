@@ -224,6 +224,7 @@ RequestSchema.index({ tenantId: 1, branchId: 1, status: 1, createdAt: -1 });
 const OfficeSettingsSchema = new mongoose.Schema({
   tenantId: { type: String, required: true, default: 'default', index: true },
   companyName: { type: String, default: 'اسم الشركة' },
+  logoUrl: { type: String, default: '/brand/logo.svg' },
   shiftHours: { type: Number, default: 8 },
   graceMinutes: { type: Number, default: 15 },
   workStartTime: { type: String, default: '09:00' },

@@ -485,7 +485,8 @@ router.post('/register-company', async (req, res) => {
       adminName, 
       adminPhone, 
       adminPassword, 
-      plan 
+      plan,
+      logoUrl 
     } = req.body;
 
     // A. Validation
@@ -540,7 +541,7 @@ router.post('/register-company', async (req, res) => {
       adminName: String(adminName || 'المدير العام').trim(),
       branding: {
         companyName: String(companyName).trim(),
-        logoUrl: '/brand/logo.svg'
+        logoUrl: logoUrl || '/brand/logo.svg'
       }
     });
 
@@ -548,6 +549,7 @@ router.post('/register-company', async (req, res) => {
     await OfficeSettings.create({
       tenantId,
       companyName: newTenant.name,
+      logoUrl: logoUrl || '/brand/logo.svg',
       shiftHours: 8,
       graceMinutes: 15,
       workStartTime: '09:00',

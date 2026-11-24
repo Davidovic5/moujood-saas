@@ -8,10 +8,15 @@ import {
   AlertCircle,
   Plus,
   Trash2,
-  X
+  X,
+  Upload,
+  Image as ImageIcon,
+  Sparkles
 } from 'lucide-react';
 import { api } from '../api';
 import { companyConfig } from '../config/company.config';
+import { compressImage } from '../utils/imageCompressor';
+import { updateAppBranding } from '../utils/appBranding';
 
 export function OfficeSettingsTab({ onSettingsUpdated }) {
   const [branches, setBranches] = useState([]);
@@ -44,6 +49,13 @@ export function OfficeSettingsTab({ onSettingsUpdated }) {
   const [isCreatingBranch, setIsCreatingBranch] = useState(false);
   const [isDeletingBranch, setIsDeletingBranch] = useState(false);
 
+  // Company Brand & Identity State
+  const [companyName, setCompanyName] = useState('');
+  const [logoUrl, setLogoUrl] = useState('');
+  const [brandingLoading, setBrandingLoading] = useState(false);
+  const [brandingSuccess, setBrandingSuccess] = useState('');
+  const [brandingError, setBrandingError] = useState('');
+
   const loadData = async () => {
     try {
       const [res, sectorsRes] = await Promise.all([
@@ -56,6 +68,11 @@ export function OfficeSettingsTab({ onSettingsUpdated }) {
       }
 
       if (res.success) {
+        if (res.settings) {
+          setCompanyName(res.settings.companyName || companyConfig.companyName);
+          setLogoUrl(res.settings.logoUrl || companyConfig.logoPath);
+        }
+
         const loadedBranches = res.branches || [];
         setBranches(loadedBranches);
         
@@ -67,6 +84,51 @@ export function OfficeSettingsTab({ onSettingsUpdated }) {
       }
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const handleLogoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      try {
+        const compressed = await compressImage(file, 300, 0.85);
+        setLogoUrl(compressed);
+        setBrandingSuccess('');
+        setBrandingError('');
+      } catch (err) {
+        setBrandingError(err.message || 'فشل معالجة صورة الشعار');
+      }
+    }
+  };
+
+  const handleSaveBranding = async (e) => {
+    e.preventDefault();
+    if (!companyName.trim()) {
+      setBrandingError('يرجى كتابة اسم الشركة.');
+      return;
+    }
+
+    setBrandingLoading(true);
+    setBrandingError('');
+    setBrandingSuccess('');
+
+    try {
+      const res = await api.updateSettings({
+        companyName: companyName.trim(),
+        logoUrl: logoUrl || '/brand/logo.svg'
+      });
+
+      if (res.success) {
+        updateAppBranding(companyName.trim(), logoUrl || '/brand/logo.svg');
+        setBrandingSuccess(`✅ تم حفظ وتحديث هوية وشعار الشركة بنجاح! الأيقونة والعنوان أصبحا: ${companyName.trim()} - Office Attendance`);
+        if (onSettingsUpdated) onSettingsUpdated();
+      } else {
+        setBrandingError(res.error || 'فشل تحديث هوية الشركة.');
+      }
+    } catch (err) {
+      setBrandingError(err.message || 'فشل الاتصال بالخادم');
+    } finally {
+      setBrandingLoading(false);
     }
   };
 
@@ -231,7 +293,126 @@ export function OfficeSettingsTab({ onSettingsUpdated }) {
   };
 
   return (
-    <div className="space-y-4 pb-8 text-right">
+    <div className="space-y-6 pb-8 text-right">
+
+      {/* ================= COMPANY BRANDING & LOGO SECTION ================= */}
+      <div className="bg-[#0E1118] border border-white/[0.08] rounded-3xl p-4 sm:p-5 shadow-lg space-y-4">
+        <div className="flex items-center justify-between border-b border-white/[0.06] pb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center font-black">
+              <Sparkles className="w-5 h-5 text-amber-400" />
+            </div>
+            <div>
+              <h3 className="text-sm font-black text-white flex items-center gap-2">
+                <span>هوية وشعار الشركة (Brand & Identity)</span>
+                <span className="text-[10px] bg-zinc-800 text-zinc-400 border border-zinc-700 px-2 py-0.5 rounded font-mono">
+                  Office Attendance
+                </span>
+              </h3>
+              <p className="text-[11px] text-zinc-400 mt-0.5">
+                تخصيص اسم شركتك والشعار ليظهرا كأيقونة رسمية للتطبيق وعنوان المتصفح
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {brandingSuccess && (
+          <div className="bg-emerald-950/70 border border-emerald-700/80 p-3 rounded-2xl flex items-center gap-2 text-emerald-300 text-xs font-bold animate-fade-in">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span>{brandingSuccess}</span>
+          </div>
+        )}
+
+        {brandingError && (
+          <div className="bg-rose-950/70 border border-rose-700/80 p-3 rounded-2xl flex items-center gap-2 text-rose-300 text-xs font-bold animate-fade-in">
+            <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+            <span>{brandingError}</span>
+          </div>
+        )}
+
+        <form onSubmit={handleSaveBranding} className="space-y-4 text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Company Name */}
+            <div>
+              <label className="block text-zinc-300 font-bold mb-1.5 flex items-center gap-1.5">
+                <Building2 className="w-3.5 h-3.5 text-amber-400" />
+                <span>اسم الشركة أو المؤسسة:</span>
+              </label>
+              <input
+                type="text"
+                placeholder="مثال: شركة الأهرام، مستشفيات النيل..."
+                value={companyName}
+                onChange={(e) => setCompanyName(e.target.value)}
+                className="w-full bg-[#08090C] border border-white/[0.08] focus:border-amber-400 text-sm text-white p-3 rounded-xl outline-none transition-all placeholder:text-zinc-500 font-medium"
+                required
+              />
+            </div>
+
+            {/* Logo Upload & Preview */}
+            <div>
+              <label className="block text-zinc-300 font-bold mb-1.5 flex items-center gap-1.5">
+                <ImageIcon className="w-3.5 h-3.5 text-amber-400" />
+                <span>لوجو الشركة (شعار التطبيق):</span>
+              </label>
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-xl bg-zinc-950 border border-white/[0.1] p-1 flex items-center justify-center overflow-hidden shrink-0">
+                  <img 
+                    src={logoUrl || '/brand/logo.svg'} 
+                    alt="شعار الشركة" 
+                    className="w-full h-full object-contain" 
+                  />
+                </div>
+                <div className="flex items-center gap-2 flex-1">
+                  <label className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-bold text-xs cursor-pointer border border-white/[0.08] transition-all">
+                    <Upload className="w-3.5 h-3.5 text-amber-400" />
+                    <span>{logoUrl && logoUrl !== '/brand/logo.svg' ? 'تغيير اللوجو' : 'رفع لوجو الشركة'}</span>
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      onChange={handleLogoUpload} 
+                      className="hidden" 
+                    />
+                  </label>
+                  {logoUrl && logoUrl !== '/brand/logo.svg' && (
+                    <button
+                      type="button"
+                      onClick={() => setLogoUrl('/brand/logo.svg')}
+                      className="text-[11px] text-rose-400 hover:text-rose-300 underline cursor-pointer"
+                    >
+                      استعادة الافتراضي
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Live Preview Bar */}
+          <div className="p-3 bg-zinc-950/70 border border-white/[0.06] rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+            <div>
+              <span className="text-[10px] text-zinc-500 font-bold block">معاينة عنوان وأيقونة البرنامج في المتصفح والموبايل:</span>
+              <div className="flex items-center gap-2 mt-1">
+                <div className="w-6 h-6 rounded-lg bg-zinc-900 border border-white/[0.1] p-0.5 flex items-center justify-center shrink-0">
+                  <img src={logoUrl || '/brand/logo.svg'} alt="" className="w-full h-full object-contain" />
+                </div>
+                <span className="text-xs font-bold text-white">
+                  {companyName.trim() || 'اسم شركتك'} - Office Attendance
+                </span>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={brandingLoading}
+              className="py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-black text-xs shadow-md shadow-amber-500/20 active:scale-95 transition-all flex items-center gap-1.5 shrink-0 disabled:opacity-50 cursor-pointer"
+            >
+              <Save className="w-3.5 h-3.5" />
+              <span>{brandingLoading ? 'جاري الحفظ...' : 'حفظ وتطبيق هوية الشركة'}</span>
+            </button>
+          </div>
+        </form>
+      </div>
+
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-base font-black text-amber-400">
