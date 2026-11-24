@@ -507,13 +507,13 @@ export function SaasLandingPage({ onOpenRegister, onOpenGodMode, onGoToTenantLog
                 <div className="bg-white p-3 rounded-xl border border-zinc-200/80">
                   <span className="text-zinc-500 block text-[11px]">تكلفة شراء وصيانة الأجهزة:</span>
                   <span className="font-mono font-bold text-rose-600 text-xs">
-                    {totalHardwareYearOne.toLocaleString('ar-EG')} ج.م / سنة
+                    {totalHardwareYearOne.toLocaleString('en-US')} ج.م / سنة
                   </span>
                 </div>
                 <div className="bg-white p-3 rounded-xl border border-zinc-200/80">
                   <span className="text-zinc-500 block text-[11px]">هدر الرواتب من التأخير:</span>
                   <span className="font-mono font-bold text-rose-600 text-xs">
-                    {annualLeakage.toLocaleString('ar-EG')} ج.م / سنة
+                    {annualLeakage.toLocaleString('en-US')} ج.م / سنة
                   </span>
                 </div>
               </div>
@@ -526,7 +526,7 @@ export function SaasLandingPage({ onOpenRegister, onOpenGodMode, onGoToTenantLog
                 صافي الوفر السنوي التقديري
               </span>
               <div className="text-3xl sm:text-4xl font-black font-mono text-zinc-950">
-                {netAnnualSavings.toLocaleString('ar-EG')}
+                {netAnnualSavings.toLocaleString('en-US')}
               </div>
               <span className="text-xs text-zinc-500 font-bold block">
                 جنيه مصري سنوياً 💰
@@ -618,7 +618,7 @@ export function SaasLandingPage({ onOpenRegister, onOpenGodMode, onGoToTenantLog
                     <div className="py-2 border-y border-zinc-100">
                       <div className="flex items-baseline gap-1 font-mono">
                         <span className="text-3xl sm:text-4xl font-black text-zinc-950">
-                          {price.toLocaleString('ar-EG')}
+                          {price.toLocaleString('en-US')}
                         </span>
                         <span className="text-xs text-zinc-500 font-bold font-sans">
                           ج.م / {billingCycle === 'yearly' ? 'سنة كاملة' : 'شهر'}
@@ -626,7 +626,7 @@ export function SaasLandingPage({ onOpenRegister, onOpenGodMode, onGoToTenantLog
                       </div>
                       {billingCycle === 'yearly' && (
                         <div className="text-[11px] text-emerald-600 font-bold mt-0.5 font-mono">
-                          يعادل {perMonthEffective.toLocaleString('ar-EG')} ج.م / شهرياً فقط!
+                          يعادل {perMonthEffective.toLocaleString('en-US')} ج.م / شهرياً فقط!
                         </div>
                       )}
                     </div>
@@ -688,7 +688,7 @@ export function SaasLandingPage({ onOpenRegister, onOpenGodMode, onGoToTenantLog
               </div>
             </div>
             <a
-              href="https://wa.me/201000000000?text=مرحباً،%20أرغب%20في%20الاستفسار%20عن%20باقة%20مخصصة%20لمنصة%20موجود"
+              href="https://wa.me/201010046078?text=مرحباً،%20أرغب%20في%20الاستفسار%20عن%20باقة%20مخصصة%20لمنصة%20موجود"
               target="_blank"
               rel="noopener noreferrer"
               className="text-xs bg-white hover:bg-zinc-50 text-zinc-900 border border-zinc-300 px-5 py-3 rounded-xl font-bold whitespace-nowrap shadow-2xs transition-all active:scale-95 flex items-center gap-2 shrink-0 cursor-pointer"
@@ -790,16 +790,6 @@ export function SaasLandingPage({ onOpenRegister, onOpenGodMode, onGoToTenantLog
             <a href="#pricing" className="hover:text-white transition-colors">
               الأسعار
             </a>
-            <span className="text-zinc-600">•</span>
-            {onOpenGodMode && (
-              <button
-                onClick={onOpenGodMode}
-                className="hover:text-emerald-400 transition-colors flex items-center gap-1 cursor-pointer"
-                title="لوحة تحكم صاحب المنصة"
-              >
-                <span>👑 إدارة المنصة (God Mode)</span>
-              </button>
-            )}
           </div>
 
           <div className="text-[11px] text-zinc-500 font-mono">
