@@ -20,11 +20,20 @@ export function getCachedBranding() {
     return {};
   }
 
+  // If directly visiting root '/' and no explicit ?app=1 or ?tenant= parameter, return empty to isolate Moujood landing
+  const isExplicitApp = new URLSearchParams(window.location.search).get('app') === '1';
+  const hasTenantParam = new URLSearchParams(window.location.search).has('tenant');
+  const pathParts = window.location.pathname.split('/').filter(Boolean);
+  const isTenantPath = (pathParts[0] === 't' || pathParts[0] === 'tenant') && Boolean(pathParts[1]);
+
+  if (window.location.pathname === '/' && !isExplicitApp && !hasTenantParam && !isTenantPath) {
+    return {};
+  }
+
   // Check if URL has tenant slug (/t/:slug or ?tenant=:slug)
   try {
-    const pathParts = window.location.pathname.split('/').filter(Boolean);
     let slug = null;
-    if ((pathParts[0] === 't' || pathParts[0] === 'tenant') && pathParts[1]) {
+    if (isTenantPath) {
       slug = pathParts[1].toLowerCase().trim();
     }
     if (!slug) {

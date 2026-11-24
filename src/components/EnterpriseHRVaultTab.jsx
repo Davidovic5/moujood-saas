@@ -80,7 +80,7 @@ export default function EnterpriseHRVaultTab({ currentUser }) {
       {/* Header */}
       <div className="bg-zinc-900/90 border border-zinc-800 p-5 rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xl">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-purple-500/10 text-purple-400 rounded-2xl">
+          <div className="p-3 bg-emerald-500/10 text-emerald-400 rounded-2xl">
             <ShieldAlert className="w-6 h-6" />
           </div>
           <div>
@@ -95,7 +95,7 @@ export default function EnterpriseHRVaultTab({ currentUser }) {
           className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 border shadow-lg ${
             weatherActive 
               ? 'bg-amber-500 text-black border-amber-400 shadow-amber-500/20' 
-              : 'bg-zinc-950 text-cyan-400 border-cyan-800/60 hover:bg-cyan-950/40'
+              : 'bg-zinc-950 text-emerald-400 border-emerald-500/40 hover:bg-emerald-500/10'
           }`}
         >
           <CloudRain className="w-4 h-4" />
@@ -104,9 +104,9 @@ export default function EnterpriseHRVaultTab({ currentUser }) {
       </div>
 
       {message && (
-        <div className="p-4 bg-purple-950/60 border border-purple-800/80 rounded-2xl text-purple-300 text-sm font-bold flex items-center justify-between">
+        <div className="p-4 bg-emerald-950/60 border border-emerald-800/80 rounded-2xl text-emerald-300 text-sm font-bold flex items-center justify-between">
           <span>{message}</span>
-          <button onClick={() => setMessage('')} className="text-xs text-purple-400 hover:underline">إغلاق</button>
+          <button onClick={() => setMessage('')} className="text-xs text-emerald-400 hover:underline">إغلاق</button>
         </div>
       )}
 
@@ -114,25 +114,25 @@ export default function EnterpriseHRVaultTab({ currentUser }) {
       <div className="flex bg-zinc-950 p-1.5 rounded-2xl border border-zinc-800 w-fit">
         <button
           onClick={() => setActiveTab('vault')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-            activeTab === 'vault' ? 'bg-purple-600 text-white font-black' : 'text-zinc-400 hover:text-white'
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            activeTab === 'vault' ? 'bg-emerald-500 text-[var(--brand-contrast-text,#ffffff)] font-black shadow-md shadow-emerald-500/20' : 'text-zinc-400 hover:text-white'
           }`}
         >
           خزنة التنبيهات (عقود/إقامات/اختبار)
         </button>
         <button
           onClick={() => setActiveTab('attrition')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-            activeTab === 'attrition' ? 'bg-purple-600 text-white font-black' : 'text-zinc-400 hover:text-white'
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+            activeTab === 'attrition' ? 'bg-emerald-500 text-[var(--brand-contrast-text,#ffffff)] font-black shadow-md shadow-emerald-500/20' : 'text-zinc-400 hover:text-white'
           }`}
         >
-          <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+          <Sparkles className="w-3.5 h-3.5" />
           <span>رادار التنبؤ بالاستقالات</span>
         </button>
         <button
           onClick={() => setActiveTab('mood')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-            activeTab === 'mood' ? 'bg-purple-600 text-white font-black' : 'text-zinc-400 hover:text-white'
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            activeTab === 'mood' ? 'bg-emerald-500 text-[var(--brand-contrast-text,#ffffff)] font-black shadow-md shadow-emerald-500/20' : 'text-zinc-400 hover:text-white'
           }`}
         >
           نبض مزاج الفريق (Team Pulse)
@@ -145,13 +145,13 @@ export default function EnterpriseHRVaultTab({ currentUser }) {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="bg-zinc-900/60 border border-zinc-800 p-4 rounded-2xl space-y-1">
               <span className="text-xs text-zinc-400 font-bold">فترات الاختبار (3 شهور)</span>
-              <h4 className="text-2xl font-black text-amber-400">
+              <h4 className="text-2xl font-black text-emerald-400">
                 {documents.filter(d => d.docType === 'probation_end').length} موظف
               </h4>
             </div>
             <div className="bg-zinc-900/60 border border-zinc-800 p-4 rounded-2xl space-y-1">
               <span className="text-xs text-zinc-400 font-bold">تجديد العقود القادمة</span>
-              <h4 className="text-2xl font-black text-purple-400">
+              <h4 className="text-2xl font-black text-emerald-400">
                 {documents.filter(d => d.docType === 'contract_renewal').length} عقد
               </h4>
             </div>
@@ -172,7 +172,7 @@ export default function EnterpriseHRVaultTab({ currentUser }) {
                 {documents.map((d) => (
                   <div key={d.id} className="bg-zinc-950 p-4 rounded-2xl border border-zinc-800 flex items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
-                      <div className={`p-2.5 rounded-xl ${d.isUrgent ? 'bg-rose-500/10 text-rose-400' : 'bg-purple-500/10 text-purple-400'}`}>
+                      <div className={`p-2.5 rounded-xl ${d.isUrgent ? 'bg-rose-500/10 text-rose-400' : 'bg-emerald-500/10 text-emerald-400'}`}>
                         <Calendar className="w-5 h-5" />
                       </div>
                       <div>
@@ -204,8 +204,8 @@ export default function EnterpriseHRVaultTab({ currentUser }) {
       {/* VIEW 2: AI ATTRITION RADAR */}
       {activeTab === 'attrition' && attritionData && (
         <div className="space-y-4">
-          <div className="bg-purple-950/30 border border-purple-800/80 p-5 rounded-3xl space-y-2">
-            <div className="flex items-center gap-2 text-purple-400 font-black text-sm">
+          <div className="bg-emerald-500/10 border border-emerald-500/30 p-5 rounded-3xl space-y-2">
+            <div className="flex items-center gap-2 text-emerald-400 font-black text-sm">
               <Sparkles className="w-4 h-4" />
               <span>تحليل الذكاء الاصطناعي لأنماط الحضور والانصراف</span>
             </div>
@@ -234,7 +234,7 @@ export default function EnterpriseHRVaultTab({ currentUser }) {
                   <ul className="space-y-1">
                     {r.indicators?.map((ind, idx) => (
                       <li key={idx} className="text-xs text-zinc-300 flex items-start gap-1.5">
-                        <span className="text-amber-400 shrink-0">•</span>
+                        <span className="text-emerald-400 shrink-0">•</span>
                         <span>{ind}</span>
                       </li>
                     ))}
@@ -242,7 +242,7 @@ export default function EnterpriseHRVaultTab({ currentUser }) {
                 </div>
 
                 <div className="pt-2 border-t border-zinc-800/80">
-                  <span className="text-[11px] text-purple-300 font-bold block">التوصية المقترحة:</span>
+                  <span className="text-[11px] text-emerald-400 font-bold block">التوصية المقترحة:</span>
                   <p className="text-xs text-zinc-400 mt-0.5">{r.recommendedAction}</p>
                 </div>
               </div>

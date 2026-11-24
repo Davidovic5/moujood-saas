@@ -122,7 +122,7 @@ async function runTests() {
   const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Cairo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
   await AttendanceRecord.deleteMany({ employeeId: testEmp.id, workDate: todayStr });
 
-  // First check-in inside October 2 branch coordinates (29.9652734, 30.9634410)
+  // First check-in inside Cairo main branch coordinates (30.0444, 31.2357)
   const firstCheckIn = await fetch(`${baseUrl}/attendance/check-in`, {
     method: 'POST',
     headers: {
@@ -132,8 +132,8 @@ async function runTests() {
     },
     body: JSON.stringify({
       employeeId: testEmp.id,
-      latitude: 29.9652734,
-      longitude: 30.9634410,
+      latitude: 30.0444,
+      longitude: 31.2357,
       accuracy: 15
     })
   });
@@ -151,8 +151,8 @@ async function runTests() {
     },
     body: JSON.stringify({
       employeeId: testEmp.id,
-      latitude: 29.9652734,
-      longitude: 30.9634410,
+      latitude: 30.0444,
+      longitude: 31.2357,
       accuracy: 15
     })
   });

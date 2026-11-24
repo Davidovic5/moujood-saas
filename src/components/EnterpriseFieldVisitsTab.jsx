@@ -136,7 +136,7 @@ export default function EnterpriseFieldVisitsTab({ currentUser }) {
       {/* Header */}
       <div className="bg-zinc-900/90 border border-zinc-800 p-5 rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xl">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-blue-500/10 text-blue-400 rounded-2xl">
+          <div className="p-3 bg-emerald-500/10 text-emerald-400 rounded-2xl">
             <Navigation className="w-6 h-6" />
           </div>
           <div>
@@ -147,9 +147,9 @@ export default function EnterpriseFieldVisitsTab({ currentUser }) {
 
         <button
           onClick={() => setShowStartModal(true)}
-          className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl text-xs font-black transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-900/30"
+          className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-[var(--brand-contrast-text,#ffffff)] rounded-2xl text-xs font-black transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/25 active:scale-95 cursor-pointer"
         >
-          <Play className="w-4 h-4 fill-white" />
+          <Play className="w-4 h-4 fill-[var(--brand-contrast-text,#ffffff)] text-[var(--brand-contrast-text,#ffffff)]" />
           <span>بدء زيارة عميل جديدة (Check-in)</span>
         </button>
       </div>
@@ -163,24 +163,24 @@ export default function EnterpriseFieldVisitsTab({ currentUser }) {
 
       {/* Active Visits Card */}
       {activeVisits.length > 0 && (
-        <div className="bg-blue-950/30 border border-blue-800/80 p-5 rounded-3xl space-y-3">
-          <h3 className="font-black text-blue-300 text-sm flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-blue-400 animate-pulse"></span>
+        <div className="bg-emerald-500/10 border border-emerald-500/30 p-5 rounded-3xl space-y-3">
+          <h3 className="font-black text-emerald-300 text-sm flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
             <span>زيارات ميدانية جارية الآن ({activeVisits.length})</span>
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {activeVisits.map((v) => (
-              <div key={v.id} className="bg-zinc-950/90 border border-blue-900/60 p-4 rounded-2xl flex items-center justify-between gap-4">
+              <div key={v.id} className="bg-zinc-950/90 border border-emerald-500/20 p-4 rounded-2xl flex items-center justify-between gap-4">
                 <div>
                   <h4 className="font-black text-white text-sm">{v.clientName}</h4>
                   <p className="text-xs text-zinc-400 mt-0.5">{v.locationName || 'موقع العميل'}</p>
-                  <span className="text-[10px] text-blue-400 font-mono mt-1 block">
+                  <span className="text-[10px] text-emerald-400 font-mono mt-1 block">
                     بدأت: {new Date(v.checkInTime).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}
                   </span>
                 </div>
                 <button
                   onClick={() => setEndingVisitId(v.id)}
-                  className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow"
+                  className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow cursor-pointer"
                 >
                   <Square className="w-3.5 h-3.5 fill-white" />
                   <span>إنهاء الزيارة (Check-out)</span>
@@ -221,7 +221,7 @@ export default function EnterpriseFieldVisitsTab({ currentUser }) {
                 </div>
 
                 <div className="text-right sm:text-left text-xs font-mono">
-                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${v.status === 'completed' ? 'bg-emerald-950 text-emerald-400' : 'bg-blue-950 text-blue-400'}`}>
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${v.status === 'completed' ? 'bg-emerald-950 text-emerald-400' : 'bg-emerald-950/80 text-emerald-300 border border-emerald-500/30'}`}>
                     {v.status === 'completed' ? 'مكتملة ✓' : 'جارية الآن...'}
                   </span>
                   <div className="text-zinc-500 text-[10px] mt-1">
@@ -282,7 +282,7 @@ export default function EnterpriseFieldVisitsTab({ currentUser }) {
                 <button
                   type="submit"
                   disabled={startingVisit}
-                  className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-black text-xs rounded-xl transition-all shadow"
+                  className="flex-1 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-[var(--brand-contrast-text,#ffffff)] font-black text-xs rounded-xl transition-all shadow-md shadow-emerald-500/25 cursor-pointer"
                 >
                   {startingVisit ? 'جاري تحديد الـ GPS...' : 'تسجيل الدخول بالموقع'}
                 </button>
@@ -300,7 +300,7 @@ export default function EnterpriseFieldVisitsTab({ currentUser }) {
             <form onSubmit={handleEndVisit} className="space-y-3">
               <div>
                 <label className="block text-xs font-bold text-zinc-400 mb-1 flex items-center gap-1">
-                  <Fuel className="w-3.5 h-3.5 text-amber-400" />
+                  <Fuel className="w-3.5 h-3.5 text-emerald-400" />
                   <span>المسافة المقطوعة بالكيلومتر (كم):</span>
                 </label>
                 <input
@@ -317,7 +317,7 @@ export default function EnterpriseFieldVisitsTab({ currentUser }) {
 
               <div>
                 <label className="block text-xs font-bold text-zinc-400 mb-1 flex items-center gap-1">
-                  <Receipt className="w-3.5 h-3.5 text-purple-400" />
+                  <Receipt className="w-3.5 h-3.5 text-emerald-400" />
                   <span>مصاريف أوبر / مواصلات إضافية (اختياري):</span>
                 </label>
                 <input
@@ -339,7 +339,7 @@ export default function EnterpriseFieldVisitsTab({ currentUser }) {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-xl transition-all shadow"
+                  className="flex-1 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-[var(--brand-contrast-text,#ffffff)] font-black text-xs rounded-xl transition-all shadow-md shadow-emerald-500/25 cursor-pointer"
                 >
                   حفظ وإنهاء المأمورية
                 </button>

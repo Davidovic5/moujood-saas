@@ -120,11 +120,72 @@ export function extractDominantColor(imageSrc) {
   });
 }
 
+export const OFFICIAL_EMERALD_PALETTE = {
+  50: '#ecfdf5',
+  100: '#d1fae5',
+  200: '#a7f3d0',
+  300: '#6ee7b7',
+  400: '#34d399',
+  500: '#10b981',
+  600: '#059669',
+  700: '#047857',
+  800: '#065f46',
+  900: '#064e3b',
+  950: '#022c22'
+};
+
+export function hexToHsl(hex) {
+  const num = parseInt(hex.replace('#', ''), 16);
+  let r = ((num >> 16) & 255) / 255;
+  let g = ((num >> 8) & 255) / 255;
+  let b = (num & 255) / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  let h, s, l = (max + min) / 2;
+  if (max === min) {
+    h = s = 0;
+  } else {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+      case g: h = (b - r) / d + 2; break;
+      case b: h = (r - g) / d + 4; break;
+    }
+    h /= 6;
+  }
+  return [h * 360, s, l];
+}
+
+export function hslToHex(h, s, l) {
+  h /= 360;
+  let r, g, b;
+  if (s === 0) {
+    r = g = b = l;
+  } else {
+    const hue2rgb = (p, q, t) => {
+      if (t < 0) t += 1;
+      if (t > 1) t -= 1;
+      if (t < 1/6) return p + (q - p) * 6 * t;
+      if (t < 1/2) return q;
+      if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+      return p;
+    };
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    const p = 2 * l - q;
+    r = hue2rgb(p, q, h + 1/3);
+    g = hue2rgb(p, q, h);
+    b = hue2rgb(p, q, h - 1/3);
+  }
+  const toHex = x => Math.round(Math.max(0, Math.min(255, x * 255))).toString(16).padStart(2, '0');
+  return '#' + toHex(r) + toHex(g) + toHex(b);
+}
+
 export function applyTenantTheme(primaryColor) {
   if (typeof document === 'undefined' || !primaryColor) return;
 
   const hex = primaryColor.startsWith('#') ? primaryColor : `#${primaryColor}`;
-  const hoverHex = adjustColor(hex, -15);
+  const isDefaultEmerald = hex.toLowerCase() === '#10b981';
+  const hoverHex = isDefaultEmerald ? '#059669' : adjustColor(hex, -15);
 
   const num = parseInt(hex.replace('#', ''), 16);
   const r = (num >> 16) & 255;
@@ -138,20 +199,37 @@ export function applyTenantTheme(primaryColor) {
   root.style.setProperty('--brand-primary', hex);
   root.style.setProperty('--brand-primary-hover', hoverHex);
   root.style.setProperty('--brand-contrast-text', contrastText);
-  root.style.setProperty('--brand-accent-glow', `rgba(${r}, ${g}, ${b}, 0.35)`);
+  root.style.setProperty('--brand-accent-glow', isDefaultEmerald ? 'rgba(16, 185, 129, 0.25)' : `rgba(${r}, ${g}, ${b}, 0.35)`);
 
   // Compute a comprehensive harmonious shade scale
-  const shade50 = adjustColor(hex, 85);
-  const shade100 = adjustColor(hex, 70);
-  const shade200 = adjustColor(hex, 55);
-  const shade300 = adjustColor(hex, 35);
-  const shade400 = adjustColor(hex, 18);
-  const shade500 = hex;
-  const shade600 = adjustColor(hex, -15);
-  const shade700 = adjustColor(hex, -30);
-  const shade800 = adjustColor(hex, -48);
-  const shade900 = adjustColor(hex, -65);
-  const shade950 = `rgba(${r}, ${g}, ${b}, 0.15)`;
+  let shade50, shade100, shade200, shade300, shade400, shade500, shade600, shade700, shade800, shade900, shade950;
+
+  if (isDefaultEmerald) {
+    shade50 = OFFICIAL_EMERALD_PALETTE[50];
+    shade100 = OFFICIAL_EMERALD_PALETTE[100];
+    shade200 = OFFICIAL_EMERALD_PALETTE[200];
+    shade300 = OFFICIAL_EMERALD_PALETTE[300];
+    shade400 = OFFICIAL_EMERALD_PALETTE[400];
+    shade500 = OFFICIAL_EMERALD_PALETTE[500];
+    shade600 = OFFICIAL_EMERALD_PALETTE[600];
+    shade700 = OFFICIAL_EMERALD_PALETTE[700];
+    shade800 = OFFICIAL_EMERALD_PALETTE[800];
+    shade900 = OFFICIAL_EMERALD_PALETTE[900];
+    shade950 = OFFICIAL_EMERALD_PALETTE[950];
+  } else {
+    const [h, s, l] = hexToHsl(hex);
+    shade50 = hslToHex(h, Math.min(s, 0.65), 0.96);
+    shade100 = hslToHex(h, Math.min(s, 0.70), 0.90);
+    shade200 = hslToHex(h, Math.min(s, 0.75), 0.80);
+    shade300 = hslToHex(h, s, 0.65);
+    shade400 = hslToHex(h, s, 0.52);
+    shade500 = hex;
+    shade600 = hslToHex(h, s, Math.max(0.15, l * 0.85));
+    shade700 = hslToHex(h, s, Math.max(0.12, l * 0.70));
+    shade800 = hslToHex(h, s, Math.max(0.08, l * 0.50));
+    shade900 = hslToHex(h, s, Math.max(0.05, l * 0.35));
+    shade950 = `rgba(${r}, ${g}, ${b}, 0.15)`;
+  }
 
   const vars = [
     // Direct CSS variables (CSS standards)

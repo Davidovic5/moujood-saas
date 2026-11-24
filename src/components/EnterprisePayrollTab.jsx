@@ -129,7 +129,7 @@ export default function EnterprisePayrollTab({ currentUser }) {
       {/* Header Bar */}
       <div className="bg-zinc-900/90 border border-zinc-800 p-5 rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xl">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-amber-500/10 text-amber-400 rounded-2xl">
+          <div className="p-3 bg-emerald-500/10 text-emerald-400 rounded-2xl">
             <DollarSign className="w-6 h-6" />
           </div>
           <div>
@@ -142,8 +142,8 @@ export default function EnterprisePayrollTab({ currentUser }) {
         <div className="flex bg-zinc-950 p-1.5 rounded-2xl border border-zinc-800 shrink-0">
           <button
             onClick={() => setActiveSubTab('payslips')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-              activeSubTab === 'payslips' ? 'bg-amber-500 text-black shadow-md' : 'text-zinc-400 hover:text-white'
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+              activeSubTab === 'payslips' ? 'bg-emerald-500 text-[var(--brand-contrast-text,#ffffff)] font-black shadow-md shadow-emerald-500/20' : 'text-zinc-400 hover:text-white'
             }`}
           >
             <FileText className="w-3.5 h-3.5" />
@@ -151,8 +151,8 @@ export default function EnterprisePayrollTab({ currentUser }) {
           </button>
           <button
             onClick={() => setActiveSubTab('advances')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-              activeSubTab === 'advances' ? 'bg-amber-500 text-black shadow-md' : 'text-zinc-400 hover:text-white'
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+              activeSubTab === 'advances' ? 'bg-emerald-500 text-[var(--brand-contrast-text,#ffffff)] font-black shadow-md shadow-emerald-500/20' : 'text-zinc-400 hover:text-white'
             }`}
           >
             <CreditCard className="w-3.5 h-3.5" />
@@ -160,8 +160,8 @@ export default function EnterprisePayrollTab({ currentUser }) {
           </button>
           <button
             onClick={() => setActiveSubTab('radar')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-              activeSubTab === 'radar' ? 'bg-amber-500 text-black shadow-md' : 'text-zinc-400 hover:text-white'
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+              activeSubTab === 'radar' ? 'bg-emerald-500 text-[var(--brand-contrast-text,#ffffff)] font-black shadow-md shadow-emerald-500/20' : 'text-zinc-400 hover:text-white'
             }`}
           >
             <TrendingUp className="w-3.5 h-3.5" />
@@ -259,7 +259,7 @@ export default function EnterprisePayrollTab({ currentUser }) {
                       </div>
                     )}
                     {p.advanceDeductions > 0 && (
-                      <div className="flex justify-between text-purple-400">
+                      <div className="flex justify-between text-amber-400">
                         <span>قسط سلفة مستقطع:</span>
                         <span className="font-mono">-{p.advanceDeductions?.toLocaleString()} ج.م</span>
                       </div>
@@ -315,9 +315,9 @@ export default function EnterprisePayrollTab({ currentUser }) {
                   <button
                     type="button"
                     onClick={() => setSplitMonths(1)}
-                    className={`py-2 text-xs font-bold rounded-xl border transition-all ${
+                    className={`py-2 text-xs font-bold rounded-xl border transition-all cursor-pointer ${
                       splitMonths === 1 
-                        ? 'bg-amber-500 text-black border-amber-400 font-black' 
+                        ? 'bg-emerald-500 text-[var(--brand-contrast-text,#ffffff)] border-emerald-400 font-black shadow-xs' 
                         : 'bg-zinc-950 text-zinc-400 border-zinc-800'
                     }`}
                   >
@@ -326,9 +326,9 @@ export default function EnterprisePayrollTab({ currentUser }) {
                   <button
                     type="button"
                     onClick={() => setSplitMonths(2)}
-                    className={`py-2 text-xs font-bold rounded-xl border transition-all ${
+                    className={`py-2 text-xs font-bold rounded-xl border transition-all cursor-pointer ${
                       splitMonths === 2 
-                        ? 'bg-amber-500 text-black border-amber-400 font-black' 
+                        ? 'bg-emerald-500 text-[var(--brand-contrast-text,#ffffff)] border-emerald-400 font-black shadow-xs' 
                         : 'bg-zinc-950 text-zinc-400 border-zinc-800'
                     }`}
                   >
@@ -351,7 +351,7 @@ export default function EnterprisePayrollTab({ currentUser }) {
               <button
                 type="submit"
                 disabled={submittingAdvance}
-                className="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5"
+                className="w-full py-2.5 bg-emerald-500 hover:bg-emerald-400 text-[var(--brand-contrast-text,#ffffff)] font-black text-xs rounded-xl transition-all shadow-md shadow-emerald-500/20 flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <Send className="w-3.5 h-3.5" />
                 <span>إرسال طلب السلفة</span>
@@ -371,7 +371,7 @@ export default function EnterprisePayrollTab({ currentUser }) {
                 {advances.map((adv) => (
                   <div key={adv.id} className="bg-zinc-900/80 border border-zinc-800 p-4 rounded-2xl flex items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
-                      <div className={`p-2.5 rounded-xl ${adv.type === 'bonus' ? 'bg-amber-500/10 text-amber-400' : 'bg-purple-500/10 text-purple-400'}`}>
+                      <div className={`p-2.5 rounded-xl ${adv.type === 'bonus' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-emerald-500/10 text-emerald-400'}`}>
                         {adv.type === 'bonus' ? <Gift className="w-5 h-5" /> : <CreditCard className="w-5 h-5" />}
                       </div>
                       <div>

@@ -517,6 +517,9 @@ export default function App() {
       sessionStorage.clear();
     } catch (e) {}
     setCurrentUser(null);
+    if (!tenantSlug) {
+      resetPlatformBranding();
+    }
   };
 
   // Profile Modal Open Handler
