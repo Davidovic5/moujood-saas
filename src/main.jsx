@@ -15,7 +15,7 @@ if ('serviceWorker' in navigator) {
     const hadController = Boolean(navigator.serviceWorker.controller);
 
     navigator.serviceWorker
-      .register('/sw.js?v=7.0')
+      .register('/sw.js?v=8.0')
       .then((registration) => {
         // Auto-check for updates
         registration.update();

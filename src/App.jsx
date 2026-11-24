@@ -60,6 +60,7 @@ import { registerPushNotifications } from './utils/pushNotifications';
 import { getInitialTheme, applyTheme } from './utils/themeHelper';
 import { checkBiometricSupport, registerBiometrics } from './utils/biometricHelper';
 import { updateAppBranding, getCachedBranding, resetPlatformBranding, setGodModeBranding } from './utils/appBranding';
+import { applyTenantTheme } from './utils/colorExtractor';
 
 const DAYS_OF_WEEK = [
   { id: 'saturday', name: 'السبت' },
@@ -119,9 +120,13 @@ export default function App() {
 
   const [officeSettings, setOfficeSettings] = useState(() => {
     const cached = getCachedBranding();
+    if (cached.primaryColor) {
+      try { applyTenantTheme(cached.primaryColor); } catch (e) {}
+    }
     return {
       companyName: cached.companyName || companyConfig.companyName,
       logoUrl: cached.logoUrl || companyConfig.logoPath,
+      primaryColor: cached.primaryColor || companyConfig.primaryColor || '#10B981',
       shiftHours: companyConfig.defaults.shiftHours,
       graceMinutes: 15,
       workStartTime: '09:00',
@@ -1143,8 +1148,8 @@ export default function App() {
                 alt={currentUser?.name || 'صورة الموظف'} 
                 className="w-12 h-12 rounded-2xl object-cover border-2 border-emerald-500/40 shadow-md shrink-0 bg-zinc-950"
               />
-              <div className="absolute -bottom-1 -left-1 bg-emerald-500 text-black p-0.5 rounded-md shadow-xs">
-                <Camera className="w-3 h-3 text-[#052e16]" />
+              <div className="absolute -bottom-1 -left-1 bg-emerald-500 text-[var(--brand-contrast-text,#ffffff)] p-0.5 rounded-md shadow-xs">
+                <Camera className="w-3 h-3 text-[var(--brand-contrast-text,#ffffff)]" />
               </div>
             </div>
             <div className="min-w-0 flex-1">
@@ -1253,16 +1258,16 @@ export default function App() {
               <button
                 type="submit"
                 disabled={mandatorySapLoading || !mandatorySapInput.trim()}
-                className="w-full py-3.5 px-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-[#052e16] font-black text-xs shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+                className="w-full py-3.5 px-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-[var(--brand-contrast-text,#ffffff)] font-black text-xs shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
               >
                 {mandatorySapLoading ? (
                   <>
-                    <Loader2 className="w-4 h-4 animate-spin text-[#052e16]" />
+                    <Loader2 className="w-4 h-4 animate-spin text-[var(--brand-contrast-text,#ffffff)]" />
                     <span>جاري التحقق والحفظ...</span>
                   </>
                 ) : (
                   <>
-                    <Save className="w-4 h-4 text-[#052e16]" />
+                    <Save className="w-4 h-4 text-[var(--brand-contrast-text,#ffffff)]" />
                     <span>حفظ وتفعيل استخدام التطبيق</span>
                   </>
                 )}

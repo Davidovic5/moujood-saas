@@ -598,9 +598,9 @@ export function CheckInTab({ currentUser, officeSettings, onAttendanceUpdated })
               type="button"
               onClick={handleCheckIn}
               disabled={loading}
-              className="w-full py-4 px-4 rounded-2xl font-black text-sm shadow-xl transition-all flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-[#052e16] shadow-emerald-500/25 active:scale-[0.98] disabled:opacity-60 cursor-pointer"
+              className="w-full py-4 px-4 rounded-2xl font-black text-sm shadow-xl transition-all flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-[var(--brand-contrast-text,#ffffff)] shadow-emerald-500/25 active:scale-[0.98] disabled:opacity-60 cursor-pointer"
             >
-              <LogIn className="w-4 h-4 text-[#052e16] shrink-0" />
+              <LogIn className="w-4 h-4 text-[var(--brand-contrast-text,#ffffff)] shrink-0" />
               <span className="truncate">{loading ? 'جاري التحقق من موقعك وتسجيل الحضور...' : `تسجيل الحضور في فرع ${branch.name}`}</span>
             </button>
           </div>
@@ -699,11 +699,11 @@ export function CheckInTab({ currentUser, officeSettings, onAttendanceUpdated })
                 disabled={loading || !canCheckOutRegular}
                 className={`w-full py-4 px-6 rounded-2xl font-black text-sm shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer ${
                   canCheckOutRegular
-                    ? 'bg-emerald-500 hover:bg-emerald-400 text-[#052e16] shadow-emerald-500/25 active:scale-[0.98]'
+                    ? 'bg-emerald-500 hover:bg-emerald-400 text-[var(--brand-contrast-text,#ffffff)] shadow-emerald-500/25 active:scale-[0.98]'
                     : 'bg-zinc-800 text-zinc-500 cursor-not-allowed shadow-none'
                 }`}
               >
-                {canCheckOutRegular ? <Unlock className="w-4 h-4 text-[#052e16]" /> : <Lock className="w-4 h-4 text-zinc-500" />}
+                {canCheckOutRegular ? <Unlock className="w-4 h-4 text-[var(--brand-contrast-text,#ffffff)]" /> : <Lock className="w-4 h-4 text-zinc-500" />}
                 <span>
                   {canCheckOutRegular 
                     ? 'تسجيل الانصراف (Check Out)' 
@@ -785,7 +785,7 @@ export function CheckInTab({ currentUser, officeSettings, onAttendanceUpdated })
                   type="button"
                   disabled={!earlyReason.trim() || loading}
                   onClick={() => handleCheckOut(true, earlyReason)}
-                  className="flex-1 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-[#052e16] text-xs font-black shadow-md shadow-emerald-500/20 disabled:opacity-50 cursor-pointer"
+                  className="flex-1 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-[var(--brand-contrast-text,#ffffff)] text-xs font-black shadow-md shadow-emerald-500/20 disabled:opacity-50 cursor-pointer"
                 >
                   {loading ? 'جاري التأكيد...' : 'تأكيد الانصراف الفوري'}
                 </button>
@@ -794,9 +794,9 @@ export function CheckInTab({ currentUser, officeSettings, onAttendanceUpdated })
                   type="button"
                   disabled={!earlyReason.trim() || earlySubmitting}
                   onClick={handleEarlyCheckoutRequest}
-                  className="flex-1 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-[#052e16] text-xs font-black shadow-md shadow-emerald-500/20 disabled:opacity-50 flex items-center justify-center gap-1.5 cursor-pointer"
+                  className="flex-1 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-[var(--brand-contrast-text,#ffffff)] text-xs font-black shadow-md shadow-emerald-500/20 disabled:opacity-50 flex items-center justify-center gap-1.5 cursor-pointer"
                 >
-                  <Send className="w-3.5 h-3.5 text-[#052e16]" />
+                  <Send className="w-3.5 h-3.5 text-[var(--brand-contrast-text,#ffffff)]" />
                   <span>{earlySubmitting ? 'جاري الإرسال...' : 'إرسال للإدارة'}</span>
                 </button>
               )}

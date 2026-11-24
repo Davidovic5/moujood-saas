@@ -88,7 +88,7 @@ export function extractDominantColor(imageSrc) {
           const hex = rgbToHex(dominantRgb.r, dominantRgb.g, dominantRgb.b);
           const hoverHex = adjustColor(hex, -15);
           const lum = getLuminance(dominantRgb.r, dominantRgb.g, dominantRgb.b);
-          const contrastText = lum > 160 ? '#09090B' : '#FFFFFF';
+          const contrastText = lum > 135 ? '#09090b' : '#ffffff';
 
           return resolve({
             primary: hex,
@@ -131,11 +131,77 @@ export function applyTenantTheme(primaryColor) {
   const g = (num >> 8) & 255;
   const b = num & 255;
   const lum = getLuminance(r, g, b);
-  const contrastText = lum > 160 ? '#09090B' : '#FFFFFF';
+  // High contrast text: dark charcoal for bright colors (like cyan, yellow, amber, light blue), crisp white for dark colors
+  const contrastText = lum > 135 ? '#09090b' : '#ffffff';
 
   const root = document.documentElement;
   root.style.setProperty('--brand-primary', hex);
   root.style.setProperty('--brand-primary-hover', hoverHex);
   root.style.setProperty('--brand-contrast-text', contrastText);
   root.style.setProperty('--brand-accent-glow', `rgba(${r}, ${g}, ${b}, 0.35)`);
+
+  // Compute a comprehensive harmonious shade scale
+  const shade50 = adjustColor(hex, 85);
+  const shade100 = adjustColor(hex, 70);
+  const shade200 = adjustColor(hex, 55);
+  const shade300 = adjustColor(hex, 35);
+  const shade400 = adjustColor(hex, 18);
+  const shade500 = hex;
+  const shade600 = adjustColor(hex, -15);
+  const shade700 = adjustColor(hex, -30);
+  const shade800 = adjustColor(hex, -48);
+  const shade900 = adjustColor(hex, -65);
+  const shade950 = `rgba(${r}, ${g}, ${b}, 0.15)`;
+
+  const vars = [
+    // Direct CSS variables (CSS standards)
+    ['--emerald-50', shade50],
+    ['--emerald-100', shade100],
+    ['--emerald-200', shade200],
+    ['--emerald-300', shade300],
+    ['--emerald-400', shade400],
+    ['--emerald-500', shade500],
+    ['--emerald-600', shade600],
+    ['--emerald-700', shade700],
+    ['--emerald-800', shade800],
+    ['--emerald-900', shade900],
+    ['--emerald-950', shade950],
+
+    // Tailwind v4 --color-emerald-* variables
+    ['--color-emerald-50', shade50],
+    ['--color-emerald-100', shade100],
+    ['--color-emerald-200', shade200],
+    ['--color-emerald-300', shade300],
+    ['--color-emerald-400', shade400],
+    ['--color-emerald-500', shade500],
+    ['--color-emerald-600', shade600],
+    ['--color-emerald-700', shade700],
+    ['--color-emerald-800', shade800],
+    ['--color-emerald-900', shade900],
+    ['--color-emerald-950', shade950],
+
+    // Amber & Yellow mappings (legacy and complementary component accents)
+    ['--amber-300', shade300],
+    ['--amber-400', shade400],
+    ['--amber-500', shade500],
+    ['--amber-600', shade600],
+    ['--amber-700', shade700],
+    ['--amber-800', shade800],
+    ['--amber-900', shade900],
+    ['--amber-950', shade950],
+    ['--color-amber-300', shade300],
+    ['--color-amber-400', shade400],
+    ['--color-amber-500', shade500],
+    ['--color-amber-600', shade600],
+    ['--color-amber-700', shade700],
+    ['--color-amber-800', shade800],
+    ['--color-amber-900', shade900],
+    ['--color-amber-950', shade950],
+    ['--yellow-400', shade400],
+    ['--yellow-500', shade500],
+    ['--color-yellow-400', shade400],
+    ['--color-yellow-500', shade500]
+  ];
+
+  vars.forEach(([k, v]) => root.style.setProperty(k, v));
 }

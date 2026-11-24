@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Building2, 
   LogIn, 
@@ -35,6 +35,7 @@ import { getInitialTheme, applyTheme } from '../utils/themeHelper';
 import { checkBiometricSupport, authenticateWithBiometrics } from '../utils/biometricHelper';
 import { companyConfig } from '../config/company.config';
 import { getCachedBranding } from '../utils/appBranding';
+import { applyTenantTheme } from '../utils/colorExtractor';
 
 const DAYS_OF_WEEK = [
   { id: 'friday', name: 'الجمعة' },
@@ -51,6 +52,13 @@ const DEFAULT_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/20
 
 export function AuthScreen({ titles, branches, officeSettings, onAuthSuccess }) {
   const brand = officeSettings?.companyName ? officeSettings : getCachedBranding();
+
+  useEffect(() => {
+    const color = brand?.primaryColor || officeSettings?.primaryColor;
+    if (color) {
+      try { applyTenantTheme(color); } catch (e) {}
+    }
+  }, [brand?.primaryColor, officeSettings?.primaryColor]);
   const [isInstalledApp, setIsInstalledApp] = useState(() => checkIsInstalledApp());
   const [webBypass, setWebBypass] = useState(true);
   const [authMode, setAuthMode] = useState('login'); // 'login' | 'register'
@@ -309,43 +317,49 @@ export function AuthScreen({ titles, branches, officeSettings, onAuthSuccess }) 
   const branchList = branches && branches.length > 0 ? branches : [];
 
   return (
-    <div className="min-h-screen bg-zinc-950 flex flex-col justify-center items-center p-3 sm:p-5 selection:bg-amber-500 selection:text-black font-['Cairo',sans-serif]">
+    <div className="min-h-screen bg-zinc-950 flex flex-col justify-center items-center p-3 sm:p-5 selection:bg-emerald-500 selection:text-black font-['Cairo',sans-serif]">
       {/* Decorative Brand Ambient Glow */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
+      <div 
+        className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full blur-3xl pointer-events-none"
+        style={{ backgroundColor: 'var(--brand-accent-glow)' }}
+      ></div>
 
       {/* ================= VIEW A: DOWNLOAD & INSTALL PORTAL (When opened in Web Browser) ================= */}
       {!isInstalledApp && !webBypass ? (
-        <div className="w-full max-w-md bg-zinc-900 border border-amber-500/30 rounded-3xl p-5 sm:p-7 shadow-2xl relative z-10 text-zinc-100 animate-fade-in">
+        <div className="w-full max-w-md bg-zinc-900 border border-emerald-500/30 rounded-3xl p-5 sm:p-7 shadow-2xl relative z-10 text-zinc-100 animate-fade-in">
           {/* Theme Toggle Button */}
           <button
             type="button"
             onClick={toggleTheme}
-            className="absolute top-4 left-4 p-2 rounded-xl bg-zinc-800/80 hover:bg-zinc-700 text-amber-400 border border-zinc-700/60 transition-all flex items-center justify-center cursor-pointer shadow-xs active:scale-95"
+            className="absolute top-4 left-4 p-2 rounded-xl bg-zinc-800/80 hover:bg-zinc-700 text-emerald-400 border border-zinc-700/60 transition-all flex items-center justify-center cursor-pointer shadow-xs active:scale-95"
             title={theme === 'dark' ? 'التحويل إلى الوضع الفاتح (Light Mode)' : 'التحويل إلى الوضع الداكن (Dark Mode)'}
             aria-label="تبديل الوضع"
           >
-            {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-amber-500" />}
+            {theme === 'dark' ? <Sun className="w-4 h-4 text-emerald-400" /> : <Moon className="w-4 h-4 text-emerald-500" />}
           </button>
 
           {/* Brand Header */}
           <div className="text-center mb-5">
-            <div className="w-20 h-24 mx-auto mb-2 flex items-center justify-center">
+            <div 
+              className="w-20 h-20 mx-auto mb-2.5 rounded-2xl bg-zinc-900 border p-2 flex items-center justify-center overflow-hidden transition-all shadow-md"
+              style={{ borderColor: 'var(--brand-primary)', boxShadow: '0 4px 20px var(--brand-accent-glow)' }}
+            >
               <img 
-                src={companyConfig.logoPath} 
-                alt={companyConfig.companyName} 
-                className="w-full h-full object-contain filter drop-shadow-[0_4px_14px_rgba(245,184,0,0.3)]" 
+                src={brand.logoUrl || companyConfig.logoPath} 
+                alt={brand.companyName || companyConfig.companyName} 
+                className="w-full h-full object-contain filter drop-shadow-[0_4px_14px_rgba(0,0,0,0.5)]" 
               />
             </div>
-            <h1 className="text-xl font-black text-amber-400 tracking-wide">{companyConfig.companyName}</h1>
-            <p className="text-[11px] text-zinc-400 font-bold tracking-wider uppercase mt-0.5">
-              {companyConfig.companyName} • تطبيق تسجيل الحضور الذكي
+            <h1 className="text-xl font-black text-white tracking-wide">{brand.companyName || companyConfig.companyName}</h1>
+            <p className="text-[11px] text-zinc-400 font-bold tracking-wider mt-0.5">
+              {brand.companyName || companyConfig.companyName} • تطبيق تسجيل الحضور والانصراف بالـ GPS
             </p>
           </div>
 
           {/* Welcome & Instruction Notice */}
-          <div className="bg-amber-950/40 border border-amber-500/40 p-4 rounded-2xl mb-4 text-center space-y-1">
-            <p className="text-xs text-amber-300 font-bold leading-relaxed">
-              لتسجيل حضورك وانصرافك بالـ GPS بدقة، يرجى <b>تثبيت تطبيق {companyConfig.companyName}</b> على هاتفك.
+          <div className="bg-emerald-950/40 border border-emerald-500/40 p-4 rounded-2xl mb-4 text-center space-y-1">
+            <p className="text-xs text-emerald-300 font-bold leading-relaxed">
+              لتسجيل حضورك وانصرافك بالـ GPS بدقة، يرجى <b>تثبيت تطبيق {brand.companyName || companyConfig.companyName}</b> على هاتفك.
             </p>
             <p className="text-[11px] text-zinc-400 leading-normal">
               بمجرد تثبيت التطبيق وفتحه من شاشة هاتفك، ستفتح لك شاشة تسجيل الدخول مباشرة دون الحاجة لأي روابط تحميل.
@@ -358,9 +372,9 @@ export function AuthScreen({ titles, branches, officeSettings, onAuthSuccess }) 
               <button
                 type="button"
                 onClick={handleTriggerNativeInstall}
-                className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/25 active:scale-[0.98] transition-all"
+                className="w-full py-3.5 px-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-[var(--brand-contrast-text,#ffffff)] font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/25 active:scale-[0.98] transition-all"
               >
-                <Sparkles className="w-4 h-4 text-black" />
+                <Sparkles className="w-4 h-4 text-[var(--brand-contrast-text,#ffffff)]" />
                 <span>📲 اضغط هنا للتثبيت الفوري على شاشة الهاتف</span>
               </button>
             )}
@@ -369,7 +383,7 @@ export function AuthScreen({ titles, branches, officeSettings, onAuthSuccess }) 
             <div className="bg-zinc-950 border border-zinc-800 p-4 rounded-2xl space-y-2.5">
               <div className="flex items-center justify-between">
                 <span className="font-black text-zinc-100 text-xs flex items-center gap-1.5">
-                  <Smartphone className="w-4 h-4 text-amber-400" />
+                  <Smartphone className="w-4 h-4 text-emerald-400" />
                   <span>هواتف أندرويد (Android):</span>
                 </span>
                 <span className="text-[10px] bg-emerald-950/80 text-emerald-400 border border-emerald-800/60 px-2 py-0.5 rounded font-bold">
@@ -380,16 +394,16 @@ export function AuthScreen({ titles, branches, officeSettings, onAuthSuccess }) 
               <a
                 href="/download/OfficeAttendance.apk"
                 download="OfficeAttendance.apk"
-                className="w-full py-3.5 px-4 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black font-black text-xs rounded-xl flex items-center justify-center gap-2 shadow-md transition-all active:scale-[0.98]"
+                className="w-full py-3.5 px-4 bg-emerald-500 hover:bg-emerald-400 text-[var(--brand-contrast-text,#ffffff)] font-black text-xs rounded-xl flex items-center justify-center gap-2 shadow-md transition-all active:scale-[0.98]"
               >
-                <Download className="w-4 h-4 text-black" />
+                <Download className="w-4 h-4 text-[var(--brand-contrast-text,#ffffff)]" />
                 <span>تحميل تطبيق أندرويد (OfficeAttendance.apk)</span>
               </a>
 
               <div className="text-[11px] text-zinc-400 space-y-1 pt-1 border-t border-zinc-900 leading-normal">
                 <div className="flex items-center gap-1 text-zinc-300">
                   <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                  <span>حجم خفيف جداً (29 كيلوبايت) وتثبيت مباشر وسريع</span>
+                  <span>حجم خفيف جداً وتثبيت مباشر وسريع</span>
                 </div>
                 <div className="flex items-center gap-1 text-zinc-300">
                   <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
@@ -401,18 +415,18 @@ export function AuthScreen({ titles, branches, officeSettings, onAuthSuccess }) 
             {/* iOS Apple iPhone Install Card */}
             <div className="bg-zinc-950 border border-zinc-800 p-4 rounded-2xl space-y-2.5">
               <div className="font-black text-zinc-100 text-xs flex items-center gap-1.5">
-                <Smartphone className="w-4 h-4 text-amber-400" />
+                <Smartphone className="w-4 h-4 text-emerald-400" />
                 <span>هواتف آيفون (Apple iPhone iOS):</span>
               </div>
 
               <div className="bg-zinc-900/80 p-3 rounded-xl border border-zinc-800/80 text-[11px] text-zinc-300 space-y-1.5 leading-relaxed">
-                <div className="font-bold text-amber-400 flex items-center gap-1">
+                <div className="font-bold text-emerald-400 flex items-center gap-1">
                   <Sparkles className="w-3.5 h-3.5" />
                   <span>طريقة التثبيت في ثانيتين عبر متصفح Safari:</span>
                 </div>
                 <div>1. اضغط على زر <b>المشاركة (Share ⬆️)</b> أسفل شاشة Safari.</div>
                 <div>2. اختر <b>"إضافة إلى الشاشة الرئيسية" (Add to Home Screen)</b>.</div>
-                <div>3. ستظهر أيقونة التطبيق الذهبية على شاشتك فوراً.</div>
+                <div>3. ستظهر أيقونة التطبيق على شاشتك فوراً.</div>
               </div>
 
               <a
@@ -420,13 +434,9 @@ export function AuthScreen({ titles, branches, officeSettings, onAuthSuccess }) 
                 download
                 className="w-full py-2.5 px-3 bg-zinc-900 hover:bg-zinc-850 text-zinc-300 hover:text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 border border-zinc-700/80 transition-colors"
               >
-                <Download className="w-3.5 h-3.5 text-amber-400" />
-                <span>تثبيت تطبيق موجود المباشر للآيفون (Moujood.mobileconfig)</span>
+                <Download className="w-3.5 h-3.5 text-emerald-400" />
+                <span>تثبيت تطبيق {brand.companyName || companyConfig.companyName} المباشر للآيفون</span>
               </a>
-
-              <p className="text-[10px] text-zinc-400 leading-normal bg-zinc-900/50 p-2 rounded-lg border border-zinc-800/60">
-                💡 <b>إذا كان التطبيق مثبتاً مسبقاً على الآيفون:</b> يرجى حذف الأيقونة القديمة أولاً أو إزالة ملف التعريف القديم من (الإعدادات ⚙️ &gt; عام &gt; إدارة الأجهزة والـ VPN)، ثم إعادة التثبيت لتظهر أيقونة الدرع الذهبي الجديدة فوراً.
-              </p>
             </div>
           </div>
 
@@ -435,7 +445,7 @@ export function AuthScreen({ titles, branches, officeSettings, onAuthSuccess }) 
             <button
               type="button"
               onClick={() => setWebBypass(true)}
-              className="text-[11px] text-zinc-500 hover:text-amber-400 transition-colors font-semibold"
+              className="text-[11px] text-zinc-500 hover:text-emerald-400 transition-colors font-semibold"
             >
               💻 دخول المشرفين عبر المتصفح (Web Login) ←
             </button>
@@ -493,7 +503,7 @@ export function AuthScreen({ titles, branches, officeSettings, onAuthSuccess }) 
               }}
               className="w-full mb-4 py-2.5 px-3 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs active:scale-[0.98] border"
               style={{ 
-                backgroundColor: 'rgba(16, 185, 129, 0.1)', 
+                backgroundColor: 'var(--brand-accent-glow)', 
                 borderColor: 'var(--brand-primary)', 
                 color: 'var(--brand-primary)' 
               }}
@@ -514,7 +524,7 @@ export function AuthScreen({ titles, branches, officeSettings, onAuthSuccess }) 
               }}
               className={`flex-1 py-2 text-xs font-black rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                 authMode === 'login'
-                  ? 'bg-emerald-500 text-[#052e16] shadow-md shadow-emerald-500/20'
+                  ? 'bg-emerald-500 text-[var(--brand-contrast-text,#ffffff)] shadow-md shadow-emerald-500/25'
                   : 'text-zinc-400 hover:text-white'
               }`}
             >
@@ -530,7 +540,7 @@ export function AuthScreen({ titles, branches, officeSettings, onAuthSuccess }) 
               }}
               className={`flex-1 py-2 text-xs font-black rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                 authMode === 'register'
-                  ? 'bg-emerald-500 text-[#052e16] shadow-md shadow-emerald-500/20'
+                  ? 'bg-emerald-500 text-[var(--brand-contrast-text,#ffffff)] shadow-md shadow-emerald-500/25'
                   : 'text-zinc-400 hover:text-white'
               }`}
             >
@@ -607,9 +617,9 @@ export function AuthScreen({ titles, branches, officeSettings, onAuthSuccess }) 
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3.5 px-6 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-[#052e16] font-black text-xs shadow-lg shadow-emerald-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 mt-4 cursor-pointer"
+              className="w-full py-3.5 px-6 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-[var(--brand-contrast-text,#ffffff)] font-black text-xs shadow-lg shadow-emerald-500/25 active:scale-[0.98] transition-all flex items-center justify-center gap-2 mt-4 cursor-pointer"
             >
-              <LogIn className="w-4 h-4 text-[#052e16]" />
+              <LogIn className="w-4 h-4 text-[var(--brand-contrast-text,#ffffff)]" />
               <span>{loading ? 'جاري التحقق...' : 'دخول إلى البرنامج'}</span>
             </button>
 
@@ -627,16 +637,16 @@ export function AuthScreen({ titles, branches, officeSettings, onAuthSuccess }) 
                   type="button"
                   disabled={loading || biometricLoading}
                   onClick={handleBiometricLogin}
-                  className="w-full py-3 px-4 rounded-2xl bg-zinc-850 hover:bg-zinc-800 text-amber-400 border border-amber-500/30 hover:border-amber-500/70 font-bold text-xs flex items-center justify-center gap-2.5 shadow-sm transition-all active:scale-[0.98] cursor-pointer"
+                  className="w-full py-3 px-4 rounded-2xl bg-zinc-850 hover:bg-zinc-800 text-emerald-400 border border-emerald-500/30 hover:border-emerald-500/70 font-bold text-xs flex items-center justify-center gap-2.5 shadow-sm transition-all active:scale-[0.98] cursor-pointer"
                 >
                   {biometricLoading ? (
                     <>
-                      <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
+                      <Loader2 className="w-4 h-4 animate-spin text-emerald-400" />
                       <span>جاري فحص البصمة...</span>
                     </>
                   ) : (
                     <>
-                      <ScanFace className="w-4 h-4 text-amber-400" />
+                      <ScanFace className="w-4 h-4 text-emerald-400" />
                       <span>الدخول السريع بواسطة Face ID / بصمة الإصبع</span>
                     </>
                   )}
@@ -659,7 +669,7 @@ export function AuthScreen({ titles, branches, officeSettings, onAuthSuccess }) 
 
               <div className="flex items-center justify-center gap-3">
                 <label className="cursor-pointer group relative">
-                  <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-amber-500 shadow-md bg-zinc-900 flex items-center justify-center shrink-0">
+                  <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-emerald-500 shadow-md bg-zinc-900 flex items-center justify-center shrink-0">
                     {avatarPreview || regAvatar ? (
                       <img src={avatarPreview || regAvatar} alt="معاينة الصورة" className="w-full h-full object-cover" />
                     ) : (
@@ -677,15 +687,15 @@ export function AuthScreen({ titles, branches, officeSettings, onAuthSuccess }) 
 
                 <div className="flex flex-col gap-1.5 items-stretch flex-1">
                   {/* Option 1: Gallery (No capture attribute - opens Photos / Gallery) */}
-                  <label className="cursor-pointer inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-black text-xs shadow-md shadow-amber-500/20 active:scale-95 transition-all">
+                  <label className="cursor-pointer inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-[var(--brand-contrast-text,#ffffff)] font-black text-xs shadow-md shadow-emerald-500/25 active:scale-95 transition-all">
                     {photoCompressing ? (
                       <>
-                        <Loader2 className="w-3.5 h-3.5 animate-spin text-black" />
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-[var(--brand-contrast-text,#ffffff)]" />
                         <span>جاري المعالجة...</span>
                       </>
                     ) : (
                       <>
-                        <ImageIcon className="w-3.5 h-3.5 text-black" />
+                        <ImageIcon className="w-3.5 h-3.5 text-[var(--brand-contrast-text,#ffffff)]" />
                         <span>🖼️ رفع صورة من المعرض</span>
                       </>
                     )}
@@ -699,8 +709,8 @@ export function AuthScreen({ titles, branches, officeSettings, onAuthSuccess }) 
                   </label>
 
                   {/* Option 2: Camera Selfie (with capture="user") */}
-                  <label className="cursor-pointer inline-flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-amber-400 border border-amber-500/30 font-bold text-xs active:scale-95 transition-all">
-                    <Camera className="w-3.5 h-3.5 text-amber-400" />
+                  <label className="cursor-pointer inline-flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-emerald-400 border border-emerald-500/30 font-bold text-xs active:scale-95 transition-all">
+                    <Camera className="w-3.5 h-3.5 text-emerald-400" />
                     <span>📸 التقاط بالكاميرا</span>
                     <input
                       type="file"
@@ -725,7 +735,7 @@ export function AuthScreen({ titles, branches, officeSettings, onAuthSuccess }) 
                   onChange={e => setRegName(e.target.value)}
                   placeholder="محمد علي"
                   required
-                  className="w-full p-2.5 text-xs font-bold rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-amber-500"
+                  className="w-full p-2.5 text-xs font-bold rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-emerald-500"
                 />
               </div>
               <div>
@@ -737,7 +747,7 @@ export function AuthScreen({ titles, branches, officeSettings, onAuthSuccess }) 
                   placeholder="01xxxxxxxxx"
                   dir="ltr"
                   required
-                  className="w-full p-2.5 text-xs font-bold text-left rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-amber-500 font-mono"
+                  className="w-full p-2.5 text-xs font-bold text-left rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-emerald-500 font-mono"
                 />
               </div>
             </div>
@@ -746,7 +756,7 @@ export function AuthScreen({ titles, branches, officeSettings, onAuthSuccess }) 
             <div>
               <label className="block text-[11px] font-bold text-zinc-300 mb-1 flex items-center justify-between">
                 <span>كود الـ SAP (الرقم الوظيفي في SAP):</span>
-                <span className="text-[10px] text-amber-400 font-bold bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
                   أساسي للربط مع SAP
                 </span>
               </label>
@@ -757,7 +767,7 @@ export function AuthScreen({ titles, branches, officeSettings, onAuthSuccess }) 
                 placeholder="أدخل كود الـ SAP الخاص بالموظف"
                 dir="ltr"
                 required
-                className="w-full p-2.5 text-xs font-bold text-left rounded-xl bg-zinc-950 border border-zinc-800 text-amber-400 placeholder:text-zinc-600 focus:outline-none focus:border-amber-500 font-mono"
+                className="w-full p-2.5 text-xs font-bold text-left rounded-xl bg-zinc-950 border border-zinc-800 text-emerald-400 placeholder:text-zinc-600 focus:outline-none focus:border-emerald-500 font-mono"
               />
             </div>
 
@@ -769,7 +779,7 @@ export function AuthScreen({ titles, branches, officeSettings, onAuthSuccess }) 
                   <button
                     type="button"
                     onClick={() => setShowRegPassword(!showRegPassword)}
-                    className="text-[10px] text-zinc-400 hover:text-amber-400"
+                    className="text-[10px] text-zinc-400 hover:text-emerald-400"
                   >
                     {showRegPassword ? 'إخفاء' : 'إظهار'}
                   </button>
@@ -781,7 +791,7 @@ export function AuthScreen({ titles, branches, officeSettings, onAuthSuccess }) 
                   placeholder="4 أرقام أو حروف"
                   dir="ltr"
                   required
-                  className="w-full p-2.5 text-xs font-bold text-left rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-amber-500 font-mono"
+                  className="w-full p-2.5 text-xs font-bold text-left rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-emerald-500 font-mono"
                 />
               </div>
               <div>
@@ -793,7 +803,7 @@ export function AuthScreen({ titles, branches, officeSettings, onAuthSuccess }) 
                   placeholder="أعد كتابتها"
                   dir="ltr"
                   required
-                  className="w-full p-2.5 text-xs font-bold text-left rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-amber-500 font-mono"
+                  className="w-full p-2.5 text-xs font-bold text-left rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-emerald-500 font-mono"
                 />
               </div>
             </div>
@@ -801,7 +811,7 @@ export function AuthScreen({ titles, branches, officeSettings, onAuthSuccess }) 
             {/* 4. Job Title & Hierarchy */}
             <div>
               <label className="block text-[11px] font-bold text-zinc-300 mb-1 flex items-center gap-1">
-                <Briefcase className="w-3 h-3 text-amber-400" />
+                <Briefcase className="w-3 h-3 text-emerald-400" />
                 <span>المسمى الوظيفي (الهرم الإداري):</span>
               </label>
               <select
@@ -816,7 +826,7 @@ export function AuthScreen({ titles, branches, officeSettings, onAuthSuccess }) 
                     }
                   }
                 }}
-                className="w-full p-2.5 text-xs font-bold rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 focus:outline-none focus:border-amber-500"
+                className="w-full p-2.5 text-xs font-bold rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 focus:outline-none focus:border-emerald-500"
               >
                 {titles.map(t => (
                   <option key={t.code} value={t.code} className="bg-zinc-900 text-zinc-100">
@@ -828,9 +838,9 @@ export function AuthScreen({ titles, branches, officeSettings, onAuthSuccess }) 
 
             {/* 4.1 Sector Selection (For Area Manager) */}
             {regTitleCode === 'area_manager' && (
-              <div className="bg-amber-500/10 border border-amber-500/30 p-3 rounded-2xl space-y-1.5 animate-fade-in">
-                <label className="block text-[11px] font-black text-amber-300 flex items-center gap-1">
-                  <Building2 className="w-3.5 h-3.5 text-amber-400" />
+              <div className="bg-emerald-500/10 border border-emerald-500/30 p-3 rounded-2xl space-y-1.5 animate-fade-in">
+                <label className="block text-[11px] font-black text-emerald-300 flex items-center gap-1">
+                  <Building2 className="w-3.5 h-3.5 text-emerald-400" />
                   <span>اختر القطاع المسؤول عنه:</span>
                 </label>
                 <select
@@ -843,7 +853,7 @@ export function AuthScreen({ titles, branches, officeSettings, onAuthSuccess }) 
                       setRegBranchId(sec.branchIds[0]);
                     }
                   }}
-                  className="w-full p-2.5 text-xs font-black rounded-xl bg-zinc-950 border border-amber-500 text-amber-300 focus:outline-none"
+                  className="w-full p-2.5 text-xs font-black rounded-xl bg-zinc-950 border border-emerald-500 text-emerald-300 focus:outline-none"
                 >
                   {DEFAULT_SECTORS.map(sec => (
                     <option key={sec.id} value={sec.id} className="bg-zinc-900 text-zinc-100">
@@ -860,7 +870,7 @@ export function AuthScreen({ titles, branches, officeSettings, onAuthSuccess }) 
             {/* 5. Branch Selection */}
             <div>
               <label className="block text-[11px] font-bold text-zinc-300 mb-1 flex items-center gap-1">
-                <MapPin className="w-3 h-3 text-amber-400" />
+                <MapPin className="w-3 h-3 text-emerald-400" />
                 <span>
                   {regTitleCode === 'area_manager' 
                     ? `اختر ${companyConfig.entitySingular} المعتمد بالقطاع (مقر تواجدك الأساسي):` 
@@ -870,7 +880,7 @@ export function AuthScreen({ titles, branches, officeSettings, onAuthSuccess }) 
               <select
                 value={regBranchId}
                 onChange={e => setRegBranchId(e.target.value)}
-                className="w-full p-2.5 text-xs font-black rounded-xl bg-zinc-950 border border-amber-500/50 text-amber-400 focus:outline-none focus:border-amber-400"
+                className="w-full p-2.5 text-xs font-black rounded-xl bg-zinc-950 border border-emerald-500/50 text-emerald-400 focus:outline-none focus:border-emerald-400"
               >
                 {(regTitleCode === 'area_manager'
                   ? branchList.filter(b => {
@@ -890,10 +900,10 @@ export function AuthScreen({ titles, branches, officeSettings, onAuthSuccess }) 
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className="text-[11px] font-bold text-zinc-300 flex items-center gap-1">
-                  <Calendar className="w-3 h-3 text-amber-400" />
+                  <Calendar className="w-3 h-3 text-emerald-400" />
                   <span>أيام الإجازة الأسبوعية:</span>
                 </label>
-                <span className="text-[10px] text-amber-400 font-semibold bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20">
+                <span className="text-[10px] text-emerald-400 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
                   يومان كحد أقصى (تُثبت رسميًا)
                 </span>
               </div>
@@ -908,7 +918,7 @@ export function AuthScreen({ titles, branches, officeSettings, onAuthSuccess }) 
                       onClick={() => toggleWeeklyOffDay(day.id)}
                       className={`py-1.5 px-1 rounded-xl text-center text-[10px] font-bold transition-all border ${
                         isChecked
-                          ? 'bg-amber-500 text-black border-amber-500 shadow-xs'
+                          ? 'bg-emerald-500 text-[var(--brand-contrast-text,#ffffff)] border-emerald-500 shadow-xs'
                           : isMaxReached
                           ? 'bg-zinc-950/50 text-zinc-600 border-zinc-900 opacity-50 cursor-not-allowed'
                           : 'bg-zinc-950 text-zinc-400 border-zinc-800 hover:border-zinc-700'
@@ -925,9 +935,9 @@ export function AuthScreen({ titles, branches, officeSettings, onAuthSuccess }) 
             <button
               type="submit"
               disabled={loading || photoCompressing}
-              className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black font-black text-xs shadow-lg shadow-amber-500/25 active:scale-[0.98] transition-all flex items-center justify-center gap-2 mt-4"
+              className="w-full py-3.5 px-6 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-[var(--brand-contrast-text,#ffffff)] font-black text-xs shadow-lg shadow-emerald-500/25 active:scale-[0.98] transition-all flex items-center justify-center gap-2 mt-4 cursor-pointer"
             >
-              <UserPlus className="w-4 h-4 text-black" />
+              <UserPlus className="w-4 h-4 text-[var(--brand-contrast-text,#ffffff)]" />
               <span>{loading ? 'جاري تسجيل الحساب...' : 'إتمام التسجيل والدخول'}</span>
             </button>
           </form>
@@ -945,9 +955,9 @@ export function AuthScreen({ titles, branches, officeSettings, onAuthSuccess }) 
                   localStorage.removeItem('wd_is_installed_app');
                 } catch (e) {}
               }}
-              className="text-[11px] text-zinc-400 hover:text-amber-400 transition-colors font-bold inline-flex items-center gap-1.5 cursor-pointer"
+              className="text-[11px] text-zinc-400 hover:text-emerald-400 transition-colors font-bold inline-flex items-center gap-1.5 cursor-pointer"
             >
-              <Download className="w-3.5 h-3.5 text-amber-400" />
+              <Download className="w-3.5 h-3.5 text-emerald-400" />
               <span>صفحة تنزيل وتثبيت التطبيق على الهاتف (Android / iPhone)</span>
             </button>
           </div>
@@ -958,11 +968,11 @@ export function AuthScreen({ titles, branches, officeSettings, onAuthSuccess }) 
       {/* Install App Modal */}
       {showInstallModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in text-right">
-          <div className="bg-zinc-900 rounded-t-3xl sm:rounded-3xl max-w-md w-full p-6 shadow-2xl border border-amber-500/30 max-h-[90vh] overflow-y-auto text-zinc-100">
+          <div className="bg-zinc-900 rounded-t-3xl sm:rounded-3xl max-w-md w-full p-6 shadow-2xl border border-emerald-500/30 max-h-[90vh] overflow-y-auto text-zinc-100">
             <div className="flex items-center justify-between pb-3 border-b border-zinc-800 mb-4">
               <div className="flex items-center gap-2">
-                <img src={companyConfig.logoPath} alt="" className="w-7 h-9 object-contain" />
-                <h3 className="text-sm font-black text-amber-400">تنزيل تطبيق {companyConfig.companyName}</h3>
+                <img src={brand.logoUrl || companyConfig.logoPath} alt="" className="w-7 h-7 object-contain rounded-lg" />
+                <h3 className="text-sm font-black text-white">تنزيل تطبيق {brand.companyName || companyConfig.companyName}</h3>
               </div>
               <button
                 type="button"
@@ -975,10 +985,10 @@ export function AuthScreen({ titles, branches, officeSettings, onAuthSuccess }) 
 
             <div className="space-y-4 text-xs leading-relaxed">
               {/* Option A: Instant PWA Install (Recommended: Instant OTA Auto-updates) */}
-              <div className="bg-gradient-to-b from-amber-500/10 to-transparent border border-amber-500/30 p-4 rounded-2xl space-y-2.5">
+              <div className="bg-gradient-to-b from-emerald-500/10 to-transparent border border-emerald-500/30 p-4 rounded-2xl space-y-2.5">
                 <div className="flex items-center justify-between">
-                  <div className="font-black text-amber-400 text-sm flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-amber-400" />
+                  <div className="font-black text-emerald-400 text-sm flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-emerald-400" />
                     <span>تثبيت فوري على الشاشة (موصى به لجميع الأجهزة)</span>
                   </div>
                   <span className="text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded-md font-bold">
@@ -993,14 +1003,14 @@ export function AuthScreen({ titles, branches, officeSettings, onAuthSuccess }) 
                   <button
                     type="button"
                     onClick={handleTriggerNativeInstall}
-                    className="inline-flex items-center justify-center gap-2 w-full py-2.5 px-4 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black font-black rounded-xl shadow-md transition-all active:scale-[0.98]"
+                    className="inline-flex items-center justify-center gap-2 w-full py-2.5 px-4 bg-emerald-500 hover:bg-emerald-400 text-[var(--brand-contrast-text,#ffffff)] font-black rounded-xl shadow-md transition-all active:scale-[0.98]"
                   >
-                    <Smartphone className="w-4 h-4 text-black" />
+                    <Smartphone className="w-4 h-4 text-[var(--brand-contrast-text,#ffffff)]" />
                     <span>📲 اضغط هنا لتثبيت التطبيق على هاتفك الآن</span>
                   </button>
                 ) : (
                   <div className="bg-zinc-950/80 p-3 rounded-xl border border-zinc-800 text-[11px] text-zinc-300 space-y-1">
-                    <div className="font-bold text-amber-400">طريقة التثبيت في 3 ثوانٍ من المتصفح:</div>
+                    <div className="font-bold text-emerald-400">طريقة التثبيت في 3 ثوانٍ من المتصفح:</div>
                     <div>• <b>للأندرويد (Chrome):</b> اضغط على القائمة (الثلاث نقاط ⠇ بالأعلى) ثم اختر <b>"تثبيت التطبيق" (Install app)</b>.</div>
                     <div>• <b>للآيفون (Safari):</b> اضغط على زر <b>المشاركة (Share ⬆️)</b> ثم اختر <b>"إضافة إلى الشاشة الرئيسية"</b>.</div>
                   </div>
@@ -1016,10 +1026,10 @@ export function AuthScreen({ titles, branches, officeSettings, onAuthSuccess }) 
                 <a
                   href="/download/OfficeAttendance.apk"
                   download="OfficeAttendance.apk"
-                  className="inline-flex items-center justify-center gap-2 w-full py-2.5 px-3 bg-zinc-800 hover:bg-zinc-700 text-amber-400 font-bold rounded-xl transition-colors text-xs border border-zinc-700"
+                  className="inline-flex items-center justify-center gap-2 w-full py-2.5 px-3 bg-zinc-800 hover:bg-zinc-700 text-emerald-400 font-bold rounded-xl transition-colors text-xs border border-zinc-700"
                 >
-                  <Download className="w-3.5 h-3.5 text-amber-400" />
-                  <span>تنزيل تطبيق {companyConfig.companyName} (OfficeAttendance.apk)</span>
+                  <Download className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>تنزيل تطبيق {brand.companyName || companyConfig.companyName} (OfficeAttendance.apk)</span>
                 </a>
                 <p className="text-[11px] text-zinc-400 leading-normal">
                   حزمة أندرويد جاهزة للتثبيت المباشر على جميع الهواتف. ترتبط مباشرة بالسيرفر السحابي، <b>فتصلك كافة التحديثات والتحسينات تلقائياً بمجرد فتح التطبيق</b> دون الحاجة لحذفه أو إعادة تثبيته.
@@ -1039,8 +1049,8 @@ export function AuthScreen({ titles, branches, officeSettings, onAuthSuccess }) 
                   download
                   className="inline-flex items-center justify-center gap-2 w-full py-2 px-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-bold rounded-xl transition-colors text-xs"
                 >
-                  <Download className="w-3.5 h-3.5 text-amber-400" />
-                  <span>تنزيل ملف (Moujood.mobileconfig)</span>
+                  <Download className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>تنزيل ملف تثبيت {brand.companyName || companyConfig.companyName} للآيفون</span>
                 </a>
               </div>
             </div>
