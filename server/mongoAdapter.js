@@ -396,8 +396,8 @@ class MongoDatabaseAdapter {
       { new: true, upsert: true }
     ).lean();
 
-    // If companyName or logoUrl changed, keep Tenant.branding in sync
-    if (newSettings.companyName || newSettings.logoUrl) {
+    // If companyName, logoUrl, or primaryColor changed, keep Tenant.branding in sync
+    if (newSettings.companyName || newSettings.logoUrl || newSettings.primaryColor) {
       const tenantUpdates = {};
       if (newSettings.companyName) {
         tenantUpdates['name'] = newSettings.companyName;
@@ -405,6 +405,9 @@ class MongoDatabaseAdapter {
       }
       if (newSettings.logoUrl) {
         tenantUpdates['branding.logoUrl'] = newSettings.logoUrl;
+      }
+      if (newSettings.primaryColor) {
+        tenantUpdates['branding.primaryColor'] = newSettings.primaryColor;
       }
       await Tenant.updateOne(
         { $or: [{ tenantId }, { slug: tenantId }] },

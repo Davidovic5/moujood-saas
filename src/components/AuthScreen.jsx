@@ -141,6 +141,23 @@ export function AuthScreen({ titles, branches, officeSettings, onAuthSuccess }) 
   const [avatarPreview, setAvatarPreview] = useState('');
   const [rawCropperImage, setRawCropperImage] = useState(null);
 
+  // Sync default branch and title dynamically when loaded
+  React.useEffect(() => {
+    if (branches && branches.length > 0) {
+      if (!regBranchId || regBranchId === 'branch_october2' || !branches.some(b => b.id === regBranchId)) {
+        setRegBranchId(branches[0].id);
+      }
+    }
+  }, [branches]);
+
+  React.useEffect(() => {
+    if (titles && titles.length > 0) {
+      if (!regTitleCode || regTitleCode === 'memberships_specialist' || !titles.some(t => t.code === regTitleCode)) {
+        setRegTitleCode(titles[titles.length - 1].code);
+      }
+    }
+  }, [titles]);
+
   // Handle Photo Picker & Open Interactive Cropper
   const handlePhotoUpload = (e) => {
     const file = e.target.files && e.target.files[0];

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
+  Building2,
   Clock, 
   Users, 
   FileText, 
@@ -114,6 +115,7 @@ export default function App() {
     return Boolean(localStorage.getItem('office_auth_user') || new URLSearchParams(window.location.search).get('app') === '1');
   });
   const [subscriptionLock, setSubscriptionLock] = useState(null);
+  const [tenantNotFound, setTenantNotFound] = useState(false);
 
   const [officeSettings, setOfficeSettings] = useState(() => {
     const cached = getCachedBranding();
@@ -158,15 +160,16 @@ export default function App() {
           }));
 
           updateAppBranding(tName, tLogo, tColor, activeSlug);
+          setTenantNotFound(false);
+        } else {
+          // If accessing via /t/:slug and tenant not found, trigger safe fallback
+          if (tenantSlug) {
+            setTenantNotFound(true);
+          }
         }
       }).catch(() => {
-        if (officeSettings?.companyName) {
-          updateAppBranding(
-            officeSettings.companyName,
-            officeSettings.logoUrl,
-            officeSettings.primaryColor || '#10B981',
-            activeSlug
-          );
+        if (tenantSlug) {
+          setTenantNotFound(true);
         }
       });
     } else if (officeSettings?.companyName) {
@@ -850,6 +853,29 @@ export default function App() {
           setIsExplicitAppView(true);
         }} 
       />
+    );
+  }
+
+  // 1.5 Tenant Not Found Fallback (Invalid /t/:slug)
+  if (tenantNotFound && !currentUser) {
+    return (
+      <div className="min-h-screen bg-[#08090C] text-white flex flex-col items-center justify-center p-6 text-center font-['Cairo',sans-serif]" dir="rtl">
+        <div className="w-16 h-16 rounded-2xl bg-zinc-900 border border-white/10 flex items-center justify-center mb-4 shadow-xl">
+          <Building2 className="w-8 h-8 text-zinc-500" />
+        </div>
+        <h2 className="text-lg font-black text-white mb-1">الشركة غير موجودة أو الرابط غير صحيح</h2>
+        <p className="text-xs text-zinc-400 max-w-sm mb-6 leading-relaxed">
+          لم يتم العثور على أي منظومة مسجلة بالرابط الفرعي: <b className="text-amber-400 font-mono" dir="ltr">/{tenantSlug}</b>. يرجى التأكد من الرابط أو إنشاء حساب جديد لشركتك.
+        </p>
+        <button
+          onClick={() => {
+            window.location.href = '/';
+          }}
+          className="px-6 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs transition-all active:scale-95 cursor-pointer shadow-lg"
+        >
+          العودة للصفحة الرئيسية لمنصة موجود 🏠
+        </button>
+      </div>
     );
   }
 

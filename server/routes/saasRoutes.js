@@ -560,6 +560,7 @@ router.post('/register-company', async (req, res) => {
       tenantId,
       companyName: newTenant.name,
       logoUrl: logoUrl || '/brand/logo.svg',
+      primaryColor: primaryColor || '#10B981',
       shiftHours: 8,
       graceMinutes: 15,
       workStartTime: '09:00',
