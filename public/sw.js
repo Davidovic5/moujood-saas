@@ -1,7 +1,7 @@
 // Service Worker for Moujood SaaS PWA
 // Provides instant app installation, seamless background updates, and Push Notifications
 
-const CACHE_NAME = 'moujood-saas-cache-v6';
+const CACHE_NAME = 'moujood-saas-cache-v7';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
