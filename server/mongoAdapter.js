@@ -217,10 +217,12 @@ async function connectToMongo(uri) {
   if (!cache.promise) {
     const opts = {
       bufferCommands: false,
-      maxPoolSize: 10,
-      minPoolSize: 1,
+      maxPoolSize: 2,
+      minPoolSize: 0,
+      maxIdleTimeMS: 5000,
       serverSelectionTimeoutMS: 5000,
-      socketTimeoutMS: 45000
+      socketTimeoutMS: 30000,
+      connectTimeoutMS: 10000
     };
 
     cache.promise = mongoose.connect(uri, opts).then(conn => {

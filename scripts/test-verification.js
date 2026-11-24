@@ -16,10 +16,12 @@ async function runTests() {
 
   // 1. Connect DB
   await mongoose.connect(MONGODB_URI, {
-    maxPoolSize: 10,
-    minPoolSize: 1,
+    maxPoolSize: 2,
+    minPoolSize: 0,
+    maxIdleTimeMS: 5000,
     serverSelectionTimeoutMS: 5000,
-    socketTimeoutMS: 45000,
+    socketTimeoutMS: 30000,
+    connectTimeoutMS: 10000,
     bufferCommands: false
   });
   console.log('✅ 1. MongoDB Connection established with production-safe pool options.');
