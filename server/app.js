@@ -26,6 +26,20 @@ app.use(cors());
 app.use(express.json({ limit: '15mb' }));
 app.use(express.urlencoded({ extended: true, limit: '15mb' }));
 
+// Global MongoDB Connection Guarantee for Serverless Execution
+app.use(async (req, res, next) => {
+  try {
+    const { MONGODB_URI } = require('./config/env');
+    const { connectToMongo } = require('./mongoAdapter');
+    if (MONGODB_URI) {
+      await connectToMongo(MONGODB_URI);
+    }
+  } catch (err) {
+    console.error('Database connection middleware error:', err);
+  }
+  next();
+});
+
 // 1. SaaS Platform Public & Management Routes (Always accessible)
 app.use('/api/saas', saasRoutes);
 

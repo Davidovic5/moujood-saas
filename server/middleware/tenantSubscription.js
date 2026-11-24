@@ -8,7 +8,8 @@
  */
 
 const { Tenant, Employee, Branch, PLANS } = require('../models');
-const { DEFAULT_TENANT_ID } = require('../config/env');
+const { DEFAULT_TENANT_ID, MONGODB_URI } = require('../config/env');
+const { connectToMongo } = require('../mongoAdapter');
 
 // Platform-level InstaPay details for client payments
 const PLATFORM_PAYMENT_CONFIG = {
@@ -25,6 +26,9 @@ const PLATFORM_PAYMENT_CONFIG = {
  */
 async function resolveTenant(req, res, next) {
   try {
+    if (MONGODB_URI) {
+      await connectToMongo(MONGODB_URI);
+    }
     let slug = null;
 
     // A. Check explicit header from frontend (sent by subdomain detection)

@@ -416,8 +416,22 @@ export default function App() {
       const branchesRes = results[2];
       const employeesRes = isUserAuthed ? results[3] : null;
 
-      if (settingsRes && settingsRes.success) {
-        setOfficeSettings(settingsRes.settings);
+      if (settingsRes && settingsRes.success && settingsRes.settings) {
+        setOfficeSettings(prev => {
+          // If tenant branding is already loaded for this company (/t/:slug), never overwrite with generic fallback
+          const isGenericFallback = settingsRes.settings.companyName === 'اسم الشركة' || settingsRes.settings.tenantId === 'default';
+          const hasCustomBranding = Boolean(tenantSlug && prev.companyName && prev.companyName !== 'اسم الشركة');
+
+          if (hasCustomBranding && isGenericFallback) {
+            return {
+              ...settingsRes.settings,
+              companyName: prev.companyName,
+              logoUrl: prev.logoUrl,
+              primaryColor: prev.primaryColor
+            };
+          }
+          return settingsRes.settings;
+        });
       }
       if (titlesRes && titlesRes.success && titlesRes.titles) {
         setTitles(titlesRes.titles);
