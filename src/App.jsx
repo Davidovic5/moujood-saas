@@ -58,7 +58,7 @@ import { formatArabicDateWithDay } from './utils/dateHelpers';
 import { registerPushNotifications } from './utils/pushNotifications';
 import { getInitialTheme, applyTheme } from './utils/themeHelper';
 import { checkBiometricSupport, registerBiometrics } from './utils/biometricHelper';
-import { updateAppBranding, getCachedBranding } from './utils/appBranding';
+import { updateAppBranding, getCachedBranding, resetPlatformBranding, setGodModeBranding } from './utils/appBranding';
 
 const DAYS_OF_WEEK = [
   { id: 'saturday', name: 'السبت' },
@@ -110,12 +110,56 @@ export default function App() {
     };
   });
 
-  // Sync document title, favicon, and brand metadata dynamically
+  // Strict Multi-Tenant Isolation & Branding Engine
   useEffect(() => {
-    if (officeSettings) {
-      updateAppBranding(officeSettings.companyName, officeSettings.logoUrl);
+    // 1. God Mode Isolation: Always lock to Moujood admin branding
+    if (showGodMode) {
+      setGodModeBranding();
+      return;
     }
-  }, [officeSettings.companyName, officeSettings.logoUrl]);
+
+    // 2. Landing Page Isolation: Always lock to official Moujood platform branding
+    if (!tenantSlug && !currentUser && !isExplicitAppView) {
+      resetPlatformBranding();
+      return;
+    }
+
+    // 3. Tenant-Specific View (/t/:slug, ?tenant=slug, or authenticated tenant)
+    const activeSlug = tenantSlug || currentUser?.tenantSlug;
+    if (activeSlug) {
+      api.getTenantPublicInfo(activeSlug).then(res => {
+        if (res && res.success && res.tenant) {
+          const tName = res.tenant.name;
+          const tLogo = res.tenant.logoUrl;
+          const tColor = res.tenant.primaryColor || '#10B981';
+
+          setOfficeSettings(prev => ({
+            ...prev,
+            companyName: tName,
+            logoUrl: tLogo,
+            primaryColor: tColor
+          }));
+
+          updateAppBranding(tName, tLogo, tColor, activeSlug);
+        }
+      }).catch(() => {
+        if (officeSettings?.companyName) {
+          updateAppBranding(
+            officeSettings.companyName,
+            officeSettings.logoUrl,
+            officeSettings.primaryColor || '#10B981',
+            activeSlug
+          );
+        }
+      });
+    } else if (officeSettings?.companyName) {
+      updateAppBranding(
+        officeSettings.companyName,
+        officeSettings.logoUrl,
+        officeSettings.primaryColor || '#10B981'
+      );
+    }
+  }, [showGodMode, tenantSlug, currentUser?.id, isExplicitAppView]);
   const [activeTab, setActiveTab] = useState('check_in');
   const [loading, setLoading] = useState(false);
   

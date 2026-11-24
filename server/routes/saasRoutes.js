@@ -17,7 +17,15 @@ const {
   Employee, 
   Branch, 
   Title, 
-  OfficeSettings 
+  OfficeSettings,
+  AttendanceRecord,
+  Request,
+  AuditLog,
+  PushSubscription,
+  InAppNotification,
+  FieldVisit,
+  HRVault,
+  Payslip
 } = require('../models');
 const { JWT_SECRET } = require('../config/env');
 const { 
@@ -486,7 +494,8 @@ router.post('/register-company', async (req, res) => {
       adminPhone, 
       adminPassword, 
       plan,
-      logoUrl 
+      logoUrl,
+      primaryColor 
     } = req.body;
 
     // A. Validation
@@ -541,7 +550,8 @@ router.post('/register-company', async (req, res) => {
       adminName: String(adminName || 'المدير العام').trim(),
       branding: {
         companyName: String(companyName).trim(),
-        logoUrl: logoUrl || '/brand/logo.svg'
+        logoUrl: logoUrl || '/brand/logo.svg',
+        primaryColor: primaryColor || '#10B981'
       }
     });
 
@@ -854,6 +864,112 @@ router.post('/admin/payments/:id/reject', requireSaasOwner, async (req, res) => 
       success: true,
       message: 'تم رفض العملية وتدوين الملاحظة',
       payment
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 12. Public Tenant Info (No auth required, for /t/:slug initial branding & login)
+router.get('/tenant-public-info/:slug', async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const cleanSlug = String(slug || '').toLowerCase().trim();
+    const tenant = await Tenant.findOne({ slug: cleanSlug }).lean();
+    if (!tenant) {
+      return res.status(404).json({ success: false, error: 'الشركة غير موجودة' });
+    }
+
+    const settings = await OfficeSettings.findOne({ tenantId: tenant.tenantId }).lean();
+    const branches = await Branch.find({ tenantId: tenant.tenantId, isArchived: { $ne: true } }, 'id name city code').lean();
+
+    res.json({
+      success: true,
+      tenant: {
+        tenantId: tenant.tenantId,
+        slug: tenant.slug,
+        name: tenant.branding?.companyName || tenant.name,
+        logoUrl: tenant.branding?.logoUrl || settings?.logoUrl || '/brand/logo.svg',
+        primaryColor: tenant.branding?.primaryColor || '#10B981',
+        plan: tenant.plan,
+        branches
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 13. Dynamic PWA Manifest for Company
+router.get('/manifest/:slug', async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const cleanSlug = String(slug || '').toLowerCase().trim();
+    const tenant = await Tenant.findOne({ slug: cleanSlug }).lean();
+    const name = tenant?.branding?.companyName || tenant?.name || 'موجود';
+    const logo = tenant?.branding?.logoUrl || '/icon-192.png';
+    const themeColor = tenant?.branding?.primaryColor || '#10B981';
+
+    const manifest = {
+      name: `${name} - Office Attendance`,
+      short_name: name,
+      start_url: `/t/${cleanSlug}`,
+      display: 'standalone',
+      background_color: '#09090b',
+      theme_color: themeColor,
+      icons: [
+        {
+          src: logo,
+          sizes: '192x192 512x512',
+          type: 'image/png',
+          purpose: 'any maskable'
+        }
+      ]
+    };
+
+    res.setHeader('Content-Type', 'application/manifest+json');
+    res.json(manifest);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 14. Delete Tenant Permanently (God Mode Admin Only)
+router.delete('/admin/tenants/:id', requireSaasOwner, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const tenant = await Tenant.findOne({ $or: [{ tenantId: id }, { slug: id }] });
+    if (!tenant) {
+      return res.status(404).json({ success: false, error: 'الشركة غير موجودة' });
+    }
+
+    if (tenant.slug === 'default') {
+      return res.status(400).json({ success: false, error: 'لا يمكن حذف النظام الأساسي الافتراضي (default)' });
+    }
+
+    const tId = tenant.tenantId;
+
+    // Cascade delete all tenant records
+    await Promise.all([
+      Tenant.deleteOne({ _id: tenant._id }),
+      Employee.deleteMany({ tenantId: tId }),
+      Branch.deleteMany({ tenantId: tId }),
+      Title.deleteMany({ tenantId: tId }),
+      OfficeSettings.deleteMany({ tenantId: tId }),
+      AttendanceRecord.deleteMany({ tenantId: tId }),
+      Request.deleteMany({ tenantId: tId }),
+      SubscriptionPayment.deleteMany({ tenantId: tId }),
+      AuditLog.deleteMany({ tenantId: tId }),
+      PushSubscription.deleteMany({ tenantId: tId }),
+      InAppNotification.deleteMany({ tenantId: tId }),
+      FieldVisit.deleteMany({ tenantId: tId }),
+      HRVault.deleteMany({ tenantId: tId }),
+      Payslip.deleteMany({ tenantId: tId })
+    ]);
+
+    res.json({
+      success: true,
+      message: `تم حذف شركة "${tenant.name}" وكافة بياناتها وحسابات موظفيها نهائياً بنجاح.`
     });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });

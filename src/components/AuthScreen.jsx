@@ -440,14 +440,17 @@ export function AuthScreen({ titles, branches, officeSettings, onAuthSuccess }) 
 
           {/* Brand Header */}
           <div className="text-center mb-5">
-            <div className="w-16 h-16 mx-auto mb-2.5 rounded-2xl bg-zinc-900 border border-white/[0.1] p-1.5 flex items-center justify-center overflow-hidden">
+            <div 
+              className="w-16 h-16 mx-auto mb-2.5 rounded-2xl bg-zinc-900 border p-1.5 flex items-center justify-center overflow-hidden transition-all shadow-md"
+              style={{ borderColor: 'var(--brand-primary)', boxShadow: '0 4px 20px var(--brand-accent-glow)' }}
+            >
               <img 
                 src={brand.logoUrl || companyConfig.logoPath} 
                 alt={brand.companyName || companyConfig.companyName} 
-                className="w-full h-full object-contain filter drop-shadow-[0_4px_14px_rgba(16,185,129,0.3)]" 
+                className="w-full h-full object-contain filter drop-shadow-[0_4px_14px_rgba(0,0,0,0.5)]" 
               />
             </div>
-            <div className="flex items-center justify-center gap-1.5">
+            <div className="flex items-center justify-center gap-1.5 flex-wrap">
               <h1 className="text-lg font-black text-white tracking-wide">
                 {brand.companyName || companyConfig.companyName}
               </h1>
@@ -456,7 +459,7 @@ export function AuthScreen({ titles, branches, officeSettings, onAuthSuccess }) 
               </span>
             </div>
             <p className="text-[11px] text-zinc-400 font-bold tracking-wider mt-1">
-              منظومة تسجيل الحضور والانصراف بالـ GPS والتحقق البيومتري
+              منظومة تسجيل الحضور والانصراف الذكية بالـ GPS
             </p>
           </div>
 
@@ -464,11 +467,22 @@ export function AuthScreen({ titles, branches, officeSettings, onAuthSuccess }) 
           {!isInstalledApp && (
             <button
               type="button"
-              onClick={() => setShowInstallModal(true)}
-              className="w-full mb-4 py-2.5 px-3 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 rounded-2xl text-emerald-400 font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs active:scale-[0.98]"
+              onClick={() => {
+                if (installPrompt) {
+                  handleTriggerNativeInstall();
+                } else {
+                  setShowInstallModal(true);
+                }
+              }}
+              className="w-full mb-4 py-2.5 px-3 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs active:scale-[0.98] border"
+              style={{ 
+                backgroundColor: 'rgba(16, 185, 129, 0.1)', 
+                borderColor: 'var(--brand-primary)', 
+                color: 'var(--brand-primary)' 
+              }}
             >
-              <Download className="w-4 h-4 text-emerald-400 animate-bounce" />
-              <span>📲 اضغط هنا لتثبيت التطبيق على شاشة الهاتف</span>
+              <Download className="w-4 h-4 animate-bounce" />
+              <span>تثبيت تطبيق {brand.companyName || companyConfig.companyName} على الهاتف 📲</span>
             </button>
           )}
 

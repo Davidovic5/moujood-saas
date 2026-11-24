@@ -13,17 +13,22 @@ import {
   ShieldCheck,
   CheckCircle2,
   Upload,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Copy,
+  Share2
 } from 'lucide-react';
 import { api } from '../api';
 import { compressImage } from '../utils/imageCompressor';
 import { updateAppBranding } from '../utils/appBranding';
+import { extractDominantColor } from '../utils/colorExtractor';
 
 export function CompanyRegistrationModal({ isOpen, onClose, onSuccess, initialPlan = 'growth' }) {
   const [step, setStep] = useState(1); // 1: Company details & plan, 2: Admin credentials, 3: Success
   const [companyName, setCompanyName] = useState('');
   const [slug, setSlug] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
+  const [primaryColor, setPrimaryColor] = useState('#10B981');
+  const [copiedLink, setCopiedLink] = useState(false);
   const [plan, setPlan] = useState(initialPlan);
   const [adminName, setAdminName] = useState('');
   const [adminPhone, setAdminPhone] = useState('');
@@ -47,6 +52,10 @@ export function CompanyRegistrationModal({ isOpen, onClose, onSuccess, initialPl
       try {
         const compressed = await compressImage(file, 300, 0.85);
         setLogoUrl(compressed);
+        const extracted = await extractDominantColor(compressed);
+        if (extracted && extracted.primary) {
+          setPrimaryColor(extracted.primary);
+        }
       } catch (err) {
         setError(err.message || 'فشل معالجة صورة الشعار');
       }
@@ -91,6 +100,7 @@ export function CompanyRegistrationModal({ isOpen, onClose, onSuccess, initialPl
         companyName: companyName.trim(),
         slug: slug.trim(),
         logoUrl: logoUrl || '/brand/logo.svg',
+        primaryColor,
         plan,
         adminName: adminName.trim() || 'المدير العام',
         adminPhone: adminPhone.trim(),
@@ -101,18 +111,15 @@ export function CompanyRegistrationModal({ isOpen, onClose, onSuccess, initialPl
         setRegistrationResult(res);
         setStep(3);
 
-        // Update document title, favicon, and app branding dynamically
-        updateAppBranding(companyName.trim(), logoUrl || '/brand/logo.svg');
+        // Update document title, favicon, colors, and dynamic manifest
+        updateAppBranding(companyName.trim(), logoUrl || '/brand/logo.svg', primaryColor, slug.trim());
 
-        // Store tokens & tenant slug in browser
+        // Store tokens & tenant user in browser
         if (res.token) {
           localStorage.setItem('office_auth_token', res.token);
         }
         if (res.user) {
           localStorage.setItem('office_auth_user', JSON.stringify(res.user));
-        }
-        if (res.tenant?.slug) {
-          localStorage.setItem('saas_tenant_slug', res.tenant.slug);
         }
       } else {
         setError(res.error || 'فشل التسجيل، يرجى مراجعة البيانات');
@@ -235,13 +242,22 @@ export function CompanyRegistrationModal({ isOpen, onClose, onSuccess, initialPl
 
               {/* Live Preview of App Title & Branding */}
               {companyName && (
-                <div className="p-3 bg-zinc-50 border border-zinc-200 rounded-xl space-y-1">
-                  <span className="text-[10px] font-bold text-zinc-400 block">معاينة اسم وأيقونة التطبيق:</span>
-                  <div className="flex items-center gap-2 text-xs font-bold text-zinc-900">
-                    <div className="w-5 h-5 rounded bg-zinc-900 flex items-center justify-center p-0.5 overflow-hidden shrink-0">
-                      <img src={logoUrl || '/brand/logo.svg'} alt="" className="w-full h-full object-contain" />
+                <div className="p-3 bg-zinc-50 border border-zinc-200 rounded-xl space-y-2">
+                  <span className="text-[10px] font-bold text-zinc-400 block">معاينة اسم وأيقونة وهوية التطبيق:</span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-xs font-bold text-zinc-900">
+                      <div className="w-6 h-6 rounded-lg bg-zinc-900 flex items-center justify-center p-0.5 overflow-hidden shrink-0 border" style={{ borderColor: primaryColor }}>
+                        <img src={logoUrl || '/brand/logo.svg'} alt="" className="w-full h-full object-contain" />
+                      </div>
+                      <span>{companyName.trim()} - Office Attendance</span>
                     </div>
-                    <span>{companyName.trim()} - Office Attendance</span>
+                    {logoUrl && (
+                      <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-white border border-zinc-200 text-[10px] font-bold text-zinc-600">
+                        <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: primaryColor }} />
+                        <span>لون الشعار:</span>
+                        <span className="font-mono" dir="ltr">{primaryColor}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -409,6 +425,54 @@ export function CompanyRegistrationModal({ isOpen, onClose, onSuccess, initialPl
                 </p>
               </div>
 
+              {/* Dedicated Permanent Branded Link for Employees */}
+              <div className="bg-emerald-950/20 border border-emerald-500/40 p-4 rounded-2xl text-right space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-emerald-700 flex items-center gap-1.5">
+                    <Globe className="w-4 h-4 text-emerald-600" />
+                    <span>رابط شركتك المخصص للموظفين (دخول وتثبيت مباشر):</span>
+                  </span>
+                  <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full border border-emerald-300">
+                    رابط دائم
+                  </span>
+                </div>
+
+                <div className="bg-white border border-zinc-200 p-2.5 rounded-xl flex items-center justify-between gap-2 shadow-xs">
+                  <span className="font-mono text-xs text-emerald-800 font-bold select-all truncate" dir="ltr">
+                    {typeof window !== 'undefined' ? `${window.location.origin}/t/${registrationResult.tenant.slug}` : `/t/${registrationResult.tenant.slug}`}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const link = `${window.location.origin}/t/${registrationResult.tenant.slug}`;
+                      navigator.clipboard.writeText(link);
+                      setCopiedLink(true);
+                      setTimeout(() => setCopiedLink(false), 3000);
+                    }}
+                    className="py-1.5 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 transition-all active:scale-95 shrink-0 cursor-pointer"
+                  >
+                    {copiedLink ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedLink ? 'تم النسخ!' : 'نسخ الرابط'}</span>
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <a
+                    href={`https://wa.me/?text=${encodeURIComponent(`رابط تطبيق الحضور والانصراف الرسمي لشركة ${companyName}:\n${typeof window !== 'undefined' ? window.location.origin : ''}/t/${registrationResult.tenant.slug}\nيمكنكم الدخول وتثبيت التطبيق على هواتفكم الآن.`)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all text-center cursor-pointer shadow-xs"
+                  >
+                    <Share2 className="w-3.5 h-3.5" />
+                    <span>مشاركة الرابط مع موظفيك عبر واتساب 💬</span>
+                  </a>
+                </div>
+
+                <p className="text-[11px] text-zinc-500 leading-relaxed">
+                  💡 عند فتح هذا الرابط على هاتف أي موظف، سيظهر لوجو وألوان شركتك واسم التطبيق: <b className="text-zinc-900">{companyName} - Office Attendance</b> ويمكنهم تثبيته على الشاشة الرئيسية مباشرة!
+                </p>
+              </div>
+
               <div className="bg-zinc-50 border border-zinc-200 p-4 rounded-2xl text-xs space-y-2.5 text-right">
                 <div className="flex justify-between items-center border-b border-zinc-200/80 pb-2">
                   <span className="text-zinc-500">اسم وهوية التطبيق:</span>
@@ -416,12 +480,6 @@ export function CompanyRegistrationModal({ isOpen, onClose, onSuccess, initialPl
                     <img src={logoUrl || '/brand/logo.svg'} alt="" className="w-4 h-4 object-contain" />
                     <span>{companyName} - Office Attendance</span>
                   </div>
-                </div>
-                <div className="flex justify-between items-center border-b border-zinc-200/80 pb-2">
-                  <span className="text-zinc-500">الرابط المخصص لشركتك:</span>
-                  <span className="font-mono text-emerald-700 font-bold" dir="ltr">
-                    {registrationResult.tenant.slug}.attendance.app
-                  </span>
                 </div>
                 <div className="flex justify-between items-center border-b border-zinc-200/80 pb-2">
                   <span className="text-zinc-500">رقم الدخول (اسم المستخدم):</span>

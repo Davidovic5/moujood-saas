@@ -11,12 +11,17 @@ import {
   X,
   Upload,
   Image as ImageIcon,
-  Sparkles
+  Sparkles,
+  Globe,
+  Copy,
+  Check,
+  Share2
 } from 'lucide-react';
-import { api } from '../api';
+import { api, getResolvedSubdomain } from '../api';
 import { companyConfig } from '../config/company.config';
 import { compressImage } from '../utils/imageCompressor';
 import { updateAppBranding } from '../utils/appBranding';
+import { extractDominantColor } from '../utils/colorExtractor';
 
 export function OfficeSettingsTab({ onSettingsUpdated }) {
   const [branches, setBranches] = useState([]);
@@ -52,12 +57,29 @@ export function OfficeSettingsTab({ onSettingsUpdated }) {
   // Company Brand & Identity State
   const [companyName, setCompanyName] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
+  const [primaryColor, setPrimaryColor] = useState('#10B981');
+  const [tenantSlug, setTenantSlug] = useState('');
+  const [copiedLink, setCopiedLink] = useState(false);
   const [brandingLoading, setBrandingLoading] = useState(false);
   const [brandingSuccess, setBrandingSuccess] = useState('');
   const [brandingError, setBrandingError] = useState('');
 
   const loadData = async () => {
     try {
+      // Determine active tenant slug
+      const resolved = getResolvedSubdomain();
+      let activeSlug = resolved;
+      if (!activeSlug) {
+        try {
+          const userStr = localStorage.getItem('office_auth_user');
+          if (userStr) {
+            const u = JSON.parse(userStr);
+            activeSlug = u.tenantSlug || (u.tenantId && u.tenantId !== 'default' ? u.tenantId.replace('tenant_', '') : '');
+          }
+        } catch (e) {}
+      }
+      setTenantSlug(activeSlug || '');
+
       const [res, sectorsRes] = await Promise.all([
         api.getSettings(),
         api.getSectors().catch(() => ({ sectors: [] }))
@@ -71,6 +93,9 @@ export function OfficeSettingsTab({ onSettingsUpdated }) {
         if (res.settings) {
           setCompanyName(res.settings.companyName || companyConfig.companyName);
           setLogoUrl(res.settings.logoUrl || companyConfig.logoPath);
+          if (res.settings.primaryColor) {
+            setPrimaryColor(res.settings.primaryColor);
+          }
         }
 
         const loadedBranches = res.branches || [];
@@ -93,6 +118,10 @@ export function OfficeSettingsTab({ onSettingsUpdated }) {
       try {
         const compressed = await compressImage(file, 300, 0.85);
         setLogoUrl(compressed);
+        const extracted = await extractDominantColor(compressed);
+        if (extracted && extracted.primary) {
+          setPrimaryColor(extracted.primary);
+        }
         setBrandingSuccess('');
         setBrandingError('');
       } catch (err) {
@@ -115,12 +144,13 @@ export function OfficeSettingsTab({ onSettingsUpdated }) {
     try {
       const res = await api.updateSettings({
         companyName: companyName.trim(),
-        logoUrl: logoUrl || '/brand/logo.svg'
+        logoUrl: logoUrl || '/brand/logo.svg',
+        primaryColor
       });
 
       if (res.success) {
-        updateAppBranding(companyName.trim(), logoUrl || '/brand/logo.svg');
-        setBrandingSuccess(`✅ تم حفظ وتحديث هوية وشعار الشركة بنجاح! الأيقونة والعنوان أصبحا: ${companyName.trim()} - Office Attendance`);
+        updateAppBranding(companyName.trim(), logoUrl || '/brand/logo.svg', primaryColor, tenantSlug);
+        setBrandingSuccess(`✅ تم حفظ وتحديث هوية وشعار الشركة بنجاح! الأيقونة والعنوان: ${companyName.trim()} - Office Attendance`);
         if (onSettingsUpdated) onSettingsUpdated();
       } else {
         setBrandingError(res.error || 'فشل تحديث هوية الشركة.');
@@ -387,12 +417,24 @@ export function OfficeSettingsTab({ onSettingsUpdated }) {
             </div>
           </div>
 
+          {/* Color Swatch & Live Indicator */}
+          {logoUrl && logoUrl !== '/brand/logo.svg' && (
+            <div className="flex items-center gap-2 p-2.5 bg-zinc-950/80 border border-white/[0.08] rounded-xl">
+              <span className="text-[11px] text-zinc-400 font-bold">اللون المستخرج تلقائياً من الشعار:</span>
+              <div className="flex items-center gap-2">
+                <span className="w-4 h-4 rounded-full border border-white/20 shadow-xs" style={{ backgroundColor: primaryColor }} />
+                <span className="font-mono text-[10px] text-emerald-400 font-bold" dir="ltr">{primaryColor}</span>
+                <span className="text-[10px] text-zinc-500">(يتم تطبيقه على أزرار وسمات التطبيق)</span>
+              </div>
+            </div>
+          )}
+
           {/* Live Preview Bar */}
           <div className="p-3 bg-zinc-950/70 border border-white/[0.06] rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
             <div>
               <span className="text-[10px] text-zinc-500 font-bold block">معاينة عنوان وأيقونة البرنامج في المتصفح والموبايل:</span>
               <div className="flex items-center gap-2 mt-1">
-                <div className="w-6 h-6 rounded-lg bg-zinc-900 border border-white/[0.1] p-0.5 flex items-center justify-center shrink-0">
+                <div className="w-6 h-6 rounded-lg bg-zinc-900 border border-white/[0.1] p-0.5 flex items-center justify-center shrink-0" style={{ borderColor: primaryColor }}>
                   <img src={logoUrl || '/brand/logo.svg'} alt="" className="w-full h-full object-contain" />
                 </div>
                 <span className="text-xs font-bold text-white">
@@ -410,6 +452,56 @@ export function OfficeSettingsTab({ onSettingsUpdated }) {
               <span>{brandingLoading ? 'جاري الحفظ...' : 'حفظ وتطبيق هوية الشركة'}</span>
             </button>
           </div>
+
+          {/* Dedicated Company Link for Employees */}
+          {tenantSlug && (
+            <div className="mt-4 pt-4 border-t border-white/[0.08] space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black text-emerald-400 flex items-center gap-1.5">
+                  <Globe className="w-4 h-4 text-emerald-400" />
+                  <span>رابط شركتك المخصص للموظفين (تثبيت ودخول مباشر):</span>
+                </span>
+                <span className="text-[10px] bg-emerald-950 text-emerald-300 font-bold px-2 py-0.5 rounded-full border border-emerald-800">
+                  رابط دائم
+                </span>
+              </div>
+
+              <div className="bg-[#08090C] border border-white/[0.08] p-2.5 rounded-xl flex items-center justify-between gap-2">
+                <span className="font-mono text-xs text-emerald-300 font-bold select-all truncate" dir="ltr">
+                  {typeof window !== 'undefined' ? `${window.location.origin}/t/${tenantSlug}` : `/t/${tenantSlug}`}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const link = `${window.location.origin}/t/${tenantSlug}`;
+                    navigator.clipboard.writeText(link);
+                    setCopiedLink(true);
+                    setTimeout(() => setCopiedLink(false), 3000);
+                  }}
+                  className="py-1.5 px-3 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs flex items-center gap-1.5 transition-all active:scale-95 shrink-0 cursor-pointer"
+                >
+                  {copiedLink ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{copiedLink ? 'تم النسخ!' : 'نسخ الرابط'}</span>
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <a
+                  href={`https://wa.me/?text=${encodeURIComponent(`رابط تطبيق الحضور والانصراف الرسمي لشركة ${companyName || 'شركتنا'}:\n${typeof window !== 'undefined' ? window.location.origin : ''}/t/${tenantSlug}\nيمكنكم الدخول وتثبيت التطبيق على هواتفكم الآن.`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all text-center cursor-pointer shadow-xs"
+                >
+                  <Share2 className="w-3.5 h-3.5" />
+                  <span>إرسال الرابط لموظفيك عبر واتساب 💬</span>
+                </a>
+              </div>
+
+              <p className="text-[10px] text-zinc-400 leading-relaxed">
+                💡 شارك هذا الرابط مع موظفيك. عند فتحه على الهاتف سيظهر باسم وهوية ولوجو شركتك ويمكنهم تثبيته كتطبيق مباشر على الشاشة الرئيسية!
+              </p>
+            </div>
+          )}
         </form>
       </div>
 

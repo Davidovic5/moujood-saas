@@ -5,17 +5,21 @@ const BASE_URL = '/api';
 
 export function getResolvedSubdomain() {
   if (typeof window === 'undefined') return '';
+
+  // 1. Path-based tenant: /t/:slug or /tenant/:slug
+  const pathname = window.location.pathname;
+  const match = pathname.match(/^\/(?:t|tenant)\/([a-z0-9-]+)/i);
+  if (match && match[1]) {
+    return match[1].toLowerCase().trim();
+  }
+
+  // 2. Query parameter: ?tenant=slug
   const params = new URLSearchParams(window.location.search);
   const paramTenant = params.get('tenant');
   if (paramTenant) return paramTenant.toLowerCase().trim();
-  
-  const savedSlug = localStorage.getItem('saas_tenant_slug');
-  if (savedSlug) return savedSlug;
 
+  // 3. Subdomain check (excluding localhost, www, api)
   const host = window.location.hostname;
-  
-  // For Vercel deployments (e.g. moujood-saas.vercel.app or moujood-saas-*.vercel.app)
-  // The root project has 3 parts: [project].vercel.app. Only 4+ parts is a tenant subdomain.
   if (host.endsWith('.vercel.app')) {
     const parts = host.split('.');
     if (parts.length > 3 && parts[0] !== 'www' && parts[0] !== 'api') {
@@ -25,10 +29,20 @@ export function getResolvedSubdomain() {
   }
 
   const parts = host.split('.');
-  // e.g. acme.moujood.com -> acme (ignore localhost, www, api)
-  if (parts.length > 2 && parts[0] !== 'www' && parts[0] !== 'api') {
+  if (parts.length > 2 && parts[0] !== 'www' && parts[0] !== 'api' && parts[0] !== 'localhost') {
     return parts[0].toLowerCase();
   }
+
+  // 4. If an authenticated user is currently logged in, use their tenant slug
+  const userStr = localStorage.getItem('office_auth_user');
+  if (userStr) {
+    try {
+      const u = JSON.parse(userStr);
+      if (u.tenantSlug) return u.tenantSlug.toLowerCase();
+      if (u.tenantId && u.tenantId !== 'default') return u.tenantId.replace('tenant_', '').toLowerCase();
+    } catch (e) {}
+  }
+
   return '';
 }
 
@@ -533,6 +547,19 @@ export const api = {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(data)
+    });
+    return res.json();
+  },
+
+  async getTenantPublicInfo(slug) {
+    const res = await fetch(`${BASE_URL}/saas/tenant-public-info/${encodeURIComponent(slug)}`);
+    return res.json();
+  },
+
+  async deleteTenant(id, saasKey) {
+    const res = await fetch(`${BASE_URL}/saas/admin/tenants/${id}`, {
+      method: 'DELETE',
+      headers: { 'x-saas-key': saasKey }
     });
     return res.json();
   },

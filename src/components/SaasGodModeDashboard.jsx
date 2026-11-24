@@ -19,9 +19,12 @@ import {
   Check,
   X,
   Lock,
-  ArrowRight
+  ArrowRight,
+  Trash2,
+  Copy
 } from 'lucide-react';
 import { api } from '../api';
+import { setGodModeBranding } from '../utils/appBranding';
 
 export function SaasGodModeDashboard({ onExit }) {
   const [saasKey, setSaasKey] = useState(() => {
@@ -54,6 +57,10 @@ export function SaasGodModeDashboard({ onExit }) {
 
   // Target Revenue Goal: 50,000 EGP / month
   const TARGET_MRR = 50000;
+
+  useEffect(() => {
+    setGodModeBranding();
+  }, []);
 
   useEffect(() => {
     if (saasKey) {
@@ -130,6 +137,30 @@ export function SaasGodModeDashboard({ onExit }) {
       }
     } catch (err) {
       alert(err.message || 'فشل الاتصال بالخادم');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDeleteTenant = async (tenant) => {
+    if (!tenant) return;
+    const confirmed = window.confirm(`⚠️ تحذير شديد الأهمية:\n\nهل أنت متأكد تماماً من رغبتك في حذف شركة "${tenant.name}" (${tenant.slug}) نهائياً؟\n\nسيتم مسح كافة حسابات الموظفين، الفروع، السجلات، والبيانات المالية نهائياً بدون رجعة.`);
+    if (!confirmed) return;
+
+    setActionLoading(true);
+    try {
+      const res = await api.deleteTenant(tenant.tenantId, saasKey);
+      if (res.success) {
+        alert(res.message || 'تم حذف الشركة وبياناتها بالكامل بنجاح ✅');
+        if (selectedTenant && selectedTenant.tenantId === tenant.tenantId) {
+          setSelectedTenant(null);
+        }
+        await loadDashboardData(saasKey);
+      } else {
+        alert(res.error || 'فشل حذف الشركة');
+      }
+    } catch (err) {
+      alert(err.message || 'فشل الاتصال بالخادم لحذف الشركة');
     } finally {
       setActionLoading(false);
     }
@@ -491,8 +522,28 @@ export function SaasGodModeDashboard({ onExit }) {
                         <tr key={t.tenantId} className="hover:bg-zinc-850/50 transition-colors">
                           <td className="p-3.5">
                             <div className="font-black text-white text-sm">{t.name}</div>
-                            <div className="text-[11px] text-emerald-400 font-mono mt-0.5 flex items-center gap-1" dir="ltr">
-                              <span>{t.slug}.attendance.app</span>
+                            <div className="text-[11px] text-emerald-400 font-mono mt-0.5 flex items-center gap-1.5" dir="ltr">
+                              <a 
+                                href={`/t/${t.slug}`} 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                className="hover:underline flex items-center gap-1 text-emerald-400"
+                              >
+                                <span>/t/{t.slug}</span>
+                                <ExternalLink className="w-3 h-3 text-emerald-500" />
+                              </a>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const link = `${window.location.origin}/t/${t.slug}`;
+                                  navigator.clipboard.writeText(link);
+                                  alert(`تم نسخ رابط الشركة المباشر:\n${link}`);
+                                }}
+                                className="p-1 hover:bg-zinc-800 rounded text-zinc-400 hover:text-white cursor-pointer"
+                                title="نسخ الرابط المباشر للموظفين"
+                              >
+                                <Copy className="w-3 h-3" />
+                              </button>
                             </div>
                           </td>
 
@@ -543,17 +594,27 @@ export function SaasGodModeDashboard({ onExit }) {
                           </td>
 
                           <td className="p-3.5 text-center">
-                            <button
-                              onClick={() => {
-                                setSelectedTenant(t);
-                                setActionPlan(t.plan);
-                                setActionStatus(t.status);
-                                setActionMonths(1);
-                              }}
-                              className="text-xs bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-3 py-1.5 rounded-xl font-bold transition-colors"
-                            >
-                              إدارة الاشتراك
-                            </button>
+                            <div className="flex items-center justify-center gap-1.5">
+                              <button
+                                onClick={() => {
+                                  setSelectedTenant(t);
+                                  setActionPlan(t.plan);
+                                  setActionStatus(t.status);
+                                  setActionMonths(1);
+                                }}
+                                className="text-xs bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-3 py-1.5 rounded-xl font-bold transition-colors cursor-pointer"
+                              >
+                                إدارة الاشتراك
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteTenant(t)}
+                                className="p-1.5 bg-rose-950/60 hover:bg-rose-900 text-rose-400 hover:text-rose-200 border border-rose-800/60 rounded-xl transition-colors cursor-pointer"
+                                title={`حذف شركة ${t.name} نهائياً`}
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))
@@ -732,15 +793,28 @@ export function SaasGodModeDashboard({ onExit }) {
               <button
                 onClick={handleUpdateTenantSubscription}
                 disabled={actionLoading}
-                className="flex-1 bg-emerald-500 hover:bg-emerald-400 text-black font-black py-2.5 rounded-xl transition-all disabled:opacity-50"
+                className="flex-1 bg-emerald-500 hover:bg-emerald-400 text-black font-black py-2.5 rounded-xl transition-all disabled:opacity-50 cursor-pointer"
               >
                 {actionLoading ? 'جاري الحفظ...' : 'حفظ وتحديث الاشتراك'}
               </button>
               <button
                 onClick={() => setSelectedTenant(null)}
-                className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 py-2.5 px-4 rounded-xl font-bold"
+                className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 py-2.5 px-4 rounded-xl font-bold cursor-pointer"
               >
                 إلغاء
+              </button>
+            </div>
+
+            {/* Danger Zone: Delete Company */}
+            <div className="pt-3 border-t border-rose-900/50">
+              <button
+                type="button"
+                onClick={() => handleDeleteTenant(selectedTenant)}
+                disabled={actionLoading}
+                className="w-full py-2.5 px-3 rounded-xl bg-rose-950/80 hover:bg-rose-900 text-rose-300 hover:text-white border border-rose-700/60 font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+                <span>حذف شركة "{selectedTenant.name}" وكافة بياناتها وموظفيها نهائياً</span>
               </button>
             </div>
           </div>
